@@ -1,0 +1,50 @@
+PACKRAT_LIBDIR = "$(R_HOME)/bin$(R_ARCH_BIN)/Rscript" -e ‘packrat::lib_dir()’
+
+OS_NAME 				:= $(shell uname -s | tr A-Z a-z)
+
+NVCC        		= /usr/local/cuda/bin/nvcc
+
+OPENMP_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
+OPENMP_LIBS 		= $(SHLIB_OPENMP_CXXFLAGS)
+
+CUDA_XCOMPILER  = -fPIC,$(OPENMP_CXXFLAGS)
+CUDA_INCLUDES 	= -I/usr/local/cuda/include
+CUDA_LIB    		= -L/usr/local/cuda/lib64 -lcudart
+
+ifeq ($(HPC), "TRUE")
+NVCC        		= /share/apps/cuda/cuda-10.1/bin/nvcc
+CUDA_INCLUDES 	= -I/share/apps/cuda/cuda-10.1/include
+CUDA_LIB    		= -L/share/apps/cuda/cuda-10.1/lib64 -lcudart 
+endif
+
+ifeq ($(OS_NAME), darwin)
+NVCC        		= /usr/local/cuda/bin/nvcc
+OPENMP_CXXFLAGS = -Xpreprocessor -fopenmp
+OPENMP_LIBS 		= -lomp
+CUDA_XCOMPILER  = $(OPENMP_CXXFLAGS)
+CUDA_INCLUDES 	= -I/usr/local/cuda/include
+CUDA_LIB    		= -L/usr/local/cuda/lib/ -Wl -rpath /usr/local/cuda/lib -lcudart 
+endif
+
+CXX_STD = CXX14
+
+R_INCLUDES 			= -I $(R_INCLUDE_DIR) -I $(R_LIBS_USER)/Rcpp/include \
+									-I $(R_LIBS_USER)/RcppEigen/include \
+									-I $(R_HOME)/library/Rcpp/include \
+									-I $(R_HOME)/library/RcppEigen/include
+
+NVCC_FLAGS  		= --x cu --std=c++14 -D__GPU__ -Xcompiler "$(CUDA_XCOMPILER)" \
+									-I/usr/local/include -I$(CUDA_INCLUDES) $(R_INCLUDES)
+											
+NVCC_LD_FLAGS		= $(CUDA_LIB)
+
+PKG_CPPFLAGS 		= $(CUDA_INCLUDES) $(OPENMP_CXXFLAGS) \
+									-DNDEBUG -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2
+PKG_LIBS 				= $(NVCC_LD_FLAGS) $(OPENMP_LIBS)
+
+OBJECTS = mvn.o RcppExports.o rcpp_run.o
+
+all: CuMCMC.so $(OBJECTS)
+
+mvn.o:
+	$(NVCC) -c $(NVCC_FLAGS) -o mvn.o mvn.cpp 

@@ -1,0 +1,12 @@
+Package: CuMCMC
+Type: Package
+Title: CUDA Markhov Chain Monte Carlo
+Version: 1.0
+Date: 2020-01-12
+Author: Tendayi Kamucheka <ftendayi@gmail.com>
+Maintainer: Tendayi Kamucheka <ftendayi@gmail.com>
+Description: CUDA accelerated Markhov Chain Monte Carlo particle filtering.
+License: GPL (>= 2)
+Imports: Rcpp (>= 1.0.3)
+LinkingTo: Rcpp, RcppEigen
+RoxygenNote: 7.0.2
