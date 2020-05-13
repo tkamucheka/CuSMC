@@ -4,26 +4,26 @@
 \alias{run}
 \title{Run simulations}
 \usage{
-run(N, d, timeSteps, Y, m0, C0, F, sampler, distribution)
+run(N, d, timeSteps, Y, m0, C0, F, df, resampler, distribution)
 }
 \arguments{
-\item{N}{integer: Number of particles is solution.}
+\item{N}{[integer]: Number of particles is solution.}
 
-\item{d}{integer: Number of parameters.}
+\item{d}{[integer]: Number of parameters.}
 
-\item{timeSteps}{integer: Total time steps.}
+\item{timeSteps}{[integer]: Total time steps.}
 
-\item{Y}{matrix: Input observations.}
+\item{Y}{[matrix]: Input observations.}
 
-\item{m0}{vector: Initial parameters at t=0}
+\item{m0}{[vector]: Initial parameters at t=0}
 
-\item{C0}{matrix: Initial covariant matrix at t=0}
+\item{C0}{[matrix]: Initial covariant matrix at t=0}
 
-\item{F}{matrix: covariant matrix for scaling particle samples}
+\item{F}{[matrix]: Covariant matrix for scaling particle samples}
 
-\item{sampler}{integer: Resampling sampler}
+\item{distribution}{[string]: Distribution for sampling particles}
 
-\item{distribution}{integer: Distribution for sampling particles}
+\item{sampler}{[string]: Resampling sampler}
 }
 \description{
 Run simulations

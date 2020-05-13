@@ -1,25 +1,36 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# CuMCMC
+# CuSMC
 
 <!-- badges: start -->
 
 <!-- badges: end -->
 
-CuMCMC is an R package for statisical learning. CuMCMC stands for Cuda
-Markov Chain Monte Carlo. CuMCMC uses a CUDA capable GPU to generate
-particles in the posterior distribution. Currently, CuMCMC support the
-Metropolis-Hastings sampler and Multivariate Normal and Student-T
-distributions.
+CuSMC is an R package for drawing random samples for a posterior
+probability distribution in Bayesian inference. CuSMC stands for CUDA
+Sequential Monte Carlo. CuSMC supports Metropolis-Hastings sampler and
+Multivariate Normal and Student-T distributions.
+
+## Prerequisites
+
+Make sure you have a CUDA capable graphic processing unit and the CUDA
+SDK installed. Details on how to setup the CUDA SDK kit can be found
+[here](https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/index.html#installing-cuda-development-tools).
+
+``` r
+## Install the following packages from CRAN
+install.package(devtools)
+install.packages(Rcpp)
+install.packages()
+```
 
 ## Installation
 
-You can install the released version of CuMCMC from
-[CRAN](https://CRAN.R-project.org) with:
+You can install CuSMC from [CRAN](https://CRAN.R-project.org) with:
 
 ``` r
-install.packages("CuMCMC")
+install.packages("CuSMC")
 ```
 
 ## Example
@@ -27,7 +38,7 @@ install.packages("CuMCMC")
 This is a basic example which shows you how to solve a common problem:
 
 ``` r
-library(CuMCMC)
+library(CuSMC)
 ## basic example code
 ```
 

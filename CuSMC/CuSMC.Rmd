@@ -1,0 +1,102 @@
+---
+documentclass: jss
+author:
+  - name: FirstName LastName
+    affiliation: University/Company
+    address: >
+      First line
+      Second line
+    email: \email{name@company.com}
+    url: http://rstudio.com
+  - name: Second Author
+    affiliation: Affiliation
+title:
+  formatted: "A Capitalized Title: Something about a Package \\pkg{foo}"
+  # If you use tex in the formatted title, also supply version without
+  plain: "A Capitalized Title: Something about a Package foo"
+  # For running headers, if needed
+  short: "\\pkg{foo}: A Capitalized Title"
+abstract: >
+  The abstract of the article.
+keywords:
+  # at least one keyword must be supplied
+  formatted: [keywords, not capitalized, "\\proglang{Java}"]
+  plain: [keywords, not capitalized, Java]
+preamble: >
+  \usepackage{amsmath}
+output: rticles::jss_article
+---
+
+# Introduction
+
+This template demonstrates some of the basic latex you'll need to know to create a JSS article.
+
+## Code formatting
+
+Don't use markdown, instead use the more precise latex commands:
+
+- \proglang{Java}
+- \pkg{plyr}
+- \code{print("abc")}
+
+# R code
+
+Can be inserted in regular R markdown blocks.
+
+## MVN
+```{r}
+library(CuSMC)
+mu = c(0, 0)
+sigma = matrix(c(1, 0, 0, 1), nrow=2)
+CuSMC::MVN(mu, sigma)
+```
+
+## MVNPDF
+```{r}
+library(CuSMC)
+x = c(0, 0)
+mu = c(0, 0)
+sigma = matrix(c(1, 0, 0, 1), nrow=2)
+CuSMC::MVNPDF(x, mu, sigma)
+```
+
+## MVT
+```{r}
+library(CuSMC)
+mu = c(0, 0, 0)
+sigma = diag(3)
+nu = 3.0
+CuSMC::MVT(mu, sigma, nu)
+```
+
+## MVTPDF
+```{r}
+library(CuSMC)
+x = c(0, 0, 0)
+mu = c(0, 0, 0)
+sigma = diag(3)
+nu = 3.0
+CuSMC::MVTPDF(x, mu, sigma, nu)
+```
+
+## Metropolis-Hastings
+```{r}
+library(CuSMC)
+N = 100
+w = rnorm(N, 0, 1)
+B = 10
+CuSMC::metropolis_hastings(w, N, B)
+```
+
+## Installation
+```{r, eval = FALSE}
+install.packages("devtools")
+install.packages("githubinstall")
+```
+
+## Installation 2
+```{r, eval = FALSE}
+library(devtools)
+library(githubinstall)
+githubinstall("CuSMC")
+```

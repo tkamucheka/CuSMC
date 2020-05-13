@@ -1,0 +1,169 @@
+\documentclass[
+]{jss}
+
+\usepackage[utf8]{inputenc}
+
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+\author{
+FirstName LastName\\University/Company \And Second Author\\Affiliation
+}
+\title{A Capitalized Title: Something about a Package \pkg{foo}}
+
+\Plainauthor{FirstName LastName, Second Author}
+\Plaintitle{A Capitalized Title: Something about a Package foo}
+\Shorttitle{\pkg{foo}: A Capitalized Title}
+
+\Abstract{
+The abstract of the article.
+}
+
+\Keywords{keywords, not capitalized, \proglang{Java}}
+\Plainkeywords{keywords, not capitalized, Java}
+
+%% publication information
+%% \Volume{50}
+%% \Issue{9}
+%% \Month{June}
+%% \Year{2012}
+%% \Submitdate{}
+%% \Acceptdate{2012-06-04}
+
+\Address{
+    FirstName LastName\\
+  University/Company\\
+  First line Second line\\
+  E-mail: \email{name@company.com}\\
+  URL: \url{http://rstudio.com}\\~\\
+    }
+
+
+% Pandoc header
+
+\usepackage{amsmath}
+
+\begin{document}
+
+\hypertarget{introduction}{%
+\section{Introduction}\label{introduction}}
+
+This template demonstrates some of the basic latex you'll need to know
+to create a JSS article.
+
+\hypertarget{code-formatting}{%
+\subsection{Code formatting}\label{code-formatting}}
+
+Don't use markdown, instead use the more precise latex commands:
+
+\begin{itemize}
+\item
+  \proglang{Java}
+\item
+  \pkg{plyr}
+\item
+  \code{print("abc")}
+\end{itemize}
+
+\hypertarget{r-code}{%
+\section{R code}\label{r-code}}
+
+Can be inserted in regular R markdown blocks.
+
+\hypertarget{mvn}{%
+\subsection{MVN}\label{mvn}}
+
+\begin{CodeChunk}
+
+\begin{CodeInput}
+R> library(CuSMC)
+R> mu = c(0, 0)
+R> sigma = matrix(c(1, 0, 0, 1), nrow=2)
+R> CuSMC::MVN(mu, sigma)
+\end{CodeInput}
+
+\begin{CodeOutput}
+[1] 1.931198 1.741011
+\end{CodeOutput}
+\end{CodeChunk}
+
+\hypertarget{mvnpdf}{%
+\subsection{MVNPDF}\label{mvnpdf}}
+
+\begin{CodeChunk}
+
+\begin{CodeInput}
+R> library(CuSMC)
+R> x = c(0, 0)
+R> mu = c(0, 0)
+R> sigma = matrix(c(1, 0, 0, 1), nrow=2)
+R> CuSMC::MVNPDF(x, mu, sigma)
+\end{CodeInput}
+
+\begin{CodeOutput}
+[1] 0.1591549
+\end{CodeOutput}
+\end{CodeChunk}
+
+\hypertarget{mvt}{%
+\subsection{MVT}\label{mvt}}
+
+\begin{CodeChunk}
+
+\begin{CodeInput}
+R> library(CuSMC)
+R> mu = c(0, 0, 0)
+R> sigma = diag(3)
+R> nu = 3.0
+R> CuSMC::MVT(mu, sigma, nu)
+\end{CodeInput}
+
+\begin{CodeOutput}
+[1] -0.3027183 -2.4256343  2.3695596
+\end{CodeOutput}
+\end{CodeChunk}
+
+\hypertarget{mvtpdf}{%
+\subsection{MVTPDF}\label{mvtpdf}}
+
+\begin{CodeChunk}
+
+\begin{CodeInput}
+R> library(CuSMC)
+R> x = c(0, 0, 0)
+R> mu = c(0, 0, 0)
+R> sigma = diag(3)
+R> nu = 3.0
+R> CuSMC::MVTPDF(x, mu, sigma, nu)
+\end{CodeInput}
+
+\begin{CodeOutput}
+[1] 0.07799708
+\end{CodeOutput}
+\end{CodeChunk}
+
+\hypertarget{metropolis-hastings}{%
+\subsection{Metropolis-Hastings}\label{metropolis-hastings}}
+
+\begin{CodeChunk}
+
+\begin{CodeInput}
+R> library(CuSMC)
+R> N = 100
+R> w = rnorm(N, 0, 1)
+R> B = 10
+R> CuSMC::metropolis_hastings(w, N, B)
+\end{CodeInput}
+
+\begin{CodeOutput}
+  [1] 50 66 69 53 48 11 44 55 66 89 61 33 22  6 64 64 70 67 13 46 34 18 20 92 64
+ [26] 89 64 55 94 81 18 20 11 23 84 94 74 11 95 89 91 91  2 39 77 33 69 97 34 47
+ [51] 72 74 88 88 87 88 48 29  3 95 89 20 64 92 32 88 17 25 87  0 89 94 99 64  2
+ [76] 33  5  9 18  3 57 64 44 71 36 30  2 25 55 55 47 43 44 92 73 60 47 69 41 47
+\end{CodeOutput}
+\end{CodeChunk}
+
+
+
+\end{document}
+

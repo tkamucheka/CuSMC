@@ -1,12 +1,21 @@
-Package: CuMCMC
+Package: CuSMC
 Type: Package
-Title: CUDA Markhov Chain Monte Carlo
+Title: CUDA Sequential Monte Carlo
 Version: 1.0
 Date: 2020-01-12
-Author: Tendayi Kamucheka <ftendayi@gmail.com>
+Authors@R: as.person(c(
+    "Tendayi Kamucheka <ftendayi@gmail.com> [aut, cre]", 
+    "Quan Mai <quanmai@uark.edu> [ctb]"
+  ))
 Maintainer: Tendayi Kamucheka <ftendayi@gmail.com>
-Description: CUDA accelerated Markhov Chain Monte Carlo particle filtering.
+Description: CUDA accelerated Sequential Monte Carlo.
 License: GPL (>= 2)
-Imports: Rcpp (>= 1.0.3)
-LinkingTo: Rcpp, RcppEigen
+Imports: 
+    Rcpp,
+    RcppEigen
+LinkingTo: 
+    Rcpp,
+    RcppEigen
 RoxygenNote: 7.0.2
+SystemRequirements: GNU make
+Encoding: UTF-8
