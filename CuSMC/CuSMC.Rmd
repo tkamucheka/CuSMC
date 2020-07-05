@@ -99,4 +99,12 @@ install.packages("githubinstall")
 library(devtools)
 library(githubinstall)
 githubinstall("CuSMC")
+library(CuSMC)
+```
+
+## Installation 2
+```{r, eval = FALSE}
+library(devtools)
+library(githubinstall)
+githubinstall("CuSMC")
 ```

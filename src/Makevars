@@ -1,8 +1,9 @@
-
-
 PACKRAT_LIBDIR 	= "$(R_HOME)/bin$(R_ARCH_BIN)/Rscript" -e ‘packrat::lib_dir()’
 
 OS_NAME 				:= $(shell uname -s | tr A-Z a-z)
+
+NVCC_RESULT 		:= $(shell which nvcc)
+NVCC_TEST 			:= $(notdir $(NVCC_RESULT))
 
 GCC 						= g++
 NVCC        		= /usr/local/cuda/bin/nvcc
@@ -42,11 +43,11 @@ R_INCLUDES 			= -I $(R_INCLUDE_DIR) \
 CXX_FLAGS       = -O3 --std=c++17 -Xpreprocessor -fopenmp -fPIC \
 									-I/usr/local/include $(R_INCLUDES) $(PKG_INCLUDES)
 
-NVCC_FLAGS  		= --x cu --std=c++14 -D__GPU__ -Xcompiler "$(CUDA_XCOMPILER)" \
+NVCC_FLAGS  		= --x cu --std=c++14 -D__GPU -Xcompiler "$(CUDA_XCOMPILER)" \
 									-I/usr/local/include -I$(CUDA_INCLUDES) $(R_INCLUDES) $(PKG_INCLUDES)
 									
 ifeq ($(NVCC_TEST), $(NVCC))
-NVCCLD_FLAGS		= $(CUDA_LIB) $(OPENMP_LIBS)
+NVCC_LD_FLAGS		= $(CUDA_LIB) $(OPENMP_LIBS)
 else
 NVCC_LD_FLAGS		= $(OPENMP_LIBS)
 endif
@@ -63,9 +64,6 @@ PKG_OBJECTS 		= linear_algebra.o mcmc.o particle_filter.o samplers.o \
 									statistics.o utility.o
 
 CUDA_OBJECTS		= mvn_dist.o
-
-NVCC_RESULT := $(shell which nvcc)
-NVCC_TEST := $(notdir $(NVCC_RESULT))
 
 ifeq ($(NVCC_TEST), $(NVCC))
 	OBJECTS = $(PKG_OBJECTS) $(CUDA_OBJECTS)

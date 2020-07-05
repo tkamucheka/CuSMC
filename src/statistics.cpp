@@ -159,51 +159,44 @@ MultiVariateNormalDistribution::MultiVariateNormalDistribution(const Eigen::Vect
 MultiVariateNormalDistribution::~MultiVariateNormalDistribution(){};
 
 // Return class instance
-MultiVariateNormalDistribution *MultiVariateNormalDistribution::getInstance(const distParams_t dist)
+MultiVariateNormalDistribution *MultiVariateNormalDistribution::getInstance(const distParams_t params)
 {
   // MultiVariateNormalDistribution MVN(mu, sigma);
-  return new MultiVariateNormalDistribution(dist.mu, dist.sigma);
+  return new MultiVariateNormalDistribution(params.mu, params.sigma);
 }
 
 // Distribution functions
-double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &x) const
+double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y) const
 {
-  unsigned int n = x.rows();
-  // Eigen::VectorXd x_mu = x - mu;
+  unsigned int n = y.rows();
   double sqrt2pi = std::sqrt(2 * M_PI);
-  double quadform = (x - mu).transpose() * sigma.inverse() * (x - mu);
-  double norm = 1.0f / (std::pow(sqrt2pi, n) *
-                        std::pow(sigma.determinant(), 0.5));
+  double norm = std::pow(sqrt2pi, -n) *
+                std::pow(sigma.determinant(), -0.5);
+
+#ifndef __GPU
+
+  Eigen::VectorXd y_mu = y - mu;
+  double quadform = y_mu.transpose() * sigma.inverse() * y_mu;
 
   return norm * exp(-0.5 * quadform);
+
+#else
+
+  return mvn_pdf_kernel_wrapper(y, mu, sigma.inverse(), F, norm, d);
+
+#endif
 };
 
 double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y,
                                            const Eigen::VectorXd &x,
                                            const Eigen::MatrixXd &E) const
 {
-  // Consider reimplementing following mthod below:
-  //
-  // function pdf = mvnpdf(x, mu, sigma)
-  //    [d, p] = size(x);
-  //    % mu can be a scalar, a 1xp vector or a nxp matrix
-  //    if nargin == 1, mu = 0; end
-  //    if all(size(mu) == [ 1, p ]), mu = repmat(mu, [ d, 1 ]); end
-  //    if nargin < 3
-  //      pdf = (2 * pi) ^ (-p / 2) * exp(-sumsq(x - mu, 2) / 2);
-  //    else
-  //      r = chol(sigma);
-  //      pdf = (2 * pi) ^ (-p / 2) * exp(-sumsq((x - mu) / r, 2) / 2) / prod(diag(r));
-  // end
+  unsigned int n = x.rows();
+  double sqrt2pi = std::sqrt(2 * M_PI);
+  double norm = std::pow(sqrt2pi, -n) * std::pow(E.determinant(), -0.5);
+  double quadform = (y - x).transpose() * E.inverse() * (y - x);
 
-  // unsigned int n = x.rows();
-  // double sqrt2pi = std::sqrt(2 * M_PI);
-  // double norm = std::pow(sqrt2pi, -n) * std::pow(E.determinant(), -0.5);
-  //
-  // double quadform = (y - x).transpose() * E.inverse() * (y - x);
-  //
-  // return norm * exp(-0.5 * quadform);
-  return 0.0f;
+  return norm * exp(-0.5 * quadform);
 };
 
 //Calculate constant norm
@@ -229,6 +222,7 @@ Eigen::VectorXd MultiVariateNormalDistribution::stdev() const { return sigma; };
 void MultiVariateNormalDistribution::sample(Eigen::VectorXd &dist_draws,
                                             const unsigned int n_iterations) const
 {
+#ifndef __GPU
   // Generator
   std::random_device randomDevice{};
   std::mt19937 generator{randomDevice()};
@@ -257,9 +251,6 @@ void MultiVariateNormalDistribution::sample(Eigen::VectorXd &dist_draws,
   sum = sum - (static_cast<double>(n_iterations) / 2) * Eigen::VectorXd::Ones(n);
   x = sum / (std::sqrt(static_cast<double>(n_iterations) / 12));
 
-  // x[0] = N(generator);
-  // x[1] = N(generator);
-
   // Find the eigen vectors of the covariance matrix
   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>
       eigen_solver(sigma);
@@ -274,6 +265,12 @@ void MultiVariateNormalDistribution::sample(Eigen::VectorXd &dist_draws,
   Eigen::MatrixXd Q = eigenvectors * sqrt_eigenvalues;
 
   dist_draws = (Q * x) + mu;
+
+#else
+
+  mvn_sample_kernel_wrapper(dist_draws, mu, Q, d);
+
+#endif
 };
 
 void MultiVariateNormalDistribution::sample(Eigen::VectorXd &dist_draws,

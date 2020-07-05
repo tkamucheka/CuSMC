@@ -78,6 +78,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// step
+List step(unsigned& N, unsigned& d, unsigned& timeSteps, Eigen::MatrixXd Y, Eigen::MatrixXd F, float df, std::string resampler, std::string distribution);
+RcppExport SEXP _CuSMC_step(SEXP NSEXP, SEXP dSEXP, SEXP timeStepsSEXP, SEXP YSEXP, SEXP FSEXP, SEXP dfSEXP, SEXP resamplerSEXP, SEXP distributionSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< unsigned& >::type N(NSEXP);
+    Rcpp::traits::input_parameter< unsigned& >::type d(dSEXP);
+    Rcpp::traits::input_parameter< unsigned& >::type timeSteps(timeStepsSEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type F(FSEXP);
+    Rcpp::traits::input_parameter< float >::type df(dfSEXP);
+    Rcpp::traits::input_parameter< std::string >::type resampler(resamplerSEXP);
+    Rcpp::traits::input_parameter< std::string >::type distribution(distributionSEXP);
+    rcpp_result_gen = Rcpp::wrap(step(N, d, timeSteps, Y, F, df, resampler, distribution));
+    return rcpp_result_gen;
+END_RCPP
+}
 // metropolis_hastings
 Eigen::VectorXd metropolis_hastings(Eigen::VectorXd w, int N, int B);
 RcppExport SEXP _CuSMC_metropolis_hastings(SEXP wSEXP, SEXP NSEXP, SEXP BSEXP) {
@@ -98,6 +116,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_CuSMC_MVT", (DL_FUNC) &_CuSMC_MVT, 3},
     {"_CuSMC_MVTPDF", (DL_FUNC) &_CuSMC_MVTPDF, 4},
     {"_CuSMC_run", (DL_FUNC) &_CuSMC_run, 10},
+    {"_CuSMC_step", (DL_FUNC) &_CuSMC_step, 8},
     {"_CuSMC_metropolis_hastings", (DL_FUNC) &_CuSMC_metropolis_hastings, 3},
     {NULL, NULL, 0}
 };

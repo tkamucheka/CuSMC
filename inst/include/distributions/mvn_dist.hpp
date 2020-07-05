@@ -12,13 +12,14 @@
 #include "../types.hpp"
 #include "../support.cuh"
 
-void metropolis(unsigned *a_t, Eigen::VectorXd *w_t, int N, unsigned t);
-void propagate_K(Eigen::VectorXd **post_x_t, unsigned *a_t,
-                 const Eigen::MatrixXd Q, const dim_t N, const dim_t d,
-                 const dim_t t, const float df = 0.0f);
-void reweight_G(Eigen::VectorXd *w_t, const Eigen::VectorXd *y_t,
-                Eigen::VectorXd **post_x_t, const double norm,
-                const Eigen::MatrixXd &E_inv, const Eigen::MatrixXd E, const Eigen::MatrixXd F,
-                const dim_t N, const dim_t d, const dim_t t, const float df = 0.0f);
+void mvn_sample_kernel_wrapper(double Eigen::VectorXd *draws,
+                               double Eigen::VectorXd *mu, const Eigen::MatrixXd Q,
+                               const dim_t d);
+void mvn_pdf_kernel_wrapper(const Eigen::VectroXd *y,
+                            Eigen::VectorXd *mu,
+                            const Eigen::MatrixXd &E_Inv,
+                            const Eigen::MatrixXd F,
+                            const double norm,
+                            const dim_t d)
 
 #endif

@@ -77,6 +77,22 @@ run <- function(N, d, timeSteps, Y, m0, C0, F, df, resampler, distribution) {
     .Call('_CuSMC_run', PACKAGE = 'CuSMC', N, d, timeSteps, Y, m0, C0, F, df, resampler, distribution)
 }
 
+#' Simulations step
+#'
+#' @param N            [integer]: Number of particles is solution.
+#' @param d            [integer]: Number of parameters.
+#' @param timeSteps    [integer]: Total time steps.
+#' @param Y            [matrix]: Input observations.
+#' @param m0           [vector]: Initial parameters at t=0
+#' @param C0           [matrix]: Initial covariant matrix at t=0
+#' @param F            [matrix]: Covariant matrix for scaling particle samples
+#' @param sampler      [string]: Resampling sampler
+#' @param distribution [string]: Distribution for sampling particles
+#' @export
+step <- function(N, d, timeSteps, Y, F, df, resampler, distribution) {
+    .Call('_CuSMC_step', PACKAGE = 'CuSMC', N, d, timeSteps, Y, F, df, resampler, distribution)
+}
+
 #' @useDynLib CuSMC
 NULL
 

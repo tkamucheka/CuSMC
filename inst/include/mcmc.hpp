@@ -24,10 +24,6 @@
 static resamplers_t Resamplers;
 static distributions_t Distributions;
 
-// Distributions["normal"] = StandardNormalDistribution::getInstance;
-// Distributions["mvn"] = MultiVariateNormalDistribution::getInstance;
-// Distributions["mvt"] = MultiVariateTDistribution::getInstance;
-
 void generateInput(Eigen::VectorXd *prior_x_t, Eigen::VectorXd *y_t,
                    Eigen::MatrixXd &F, Eigen::MatrixXd &G, Eigen::MatrixXd &I_1,
                    Eigen::MatrixXd &I_2, dim_t N, dim_t d, dim_t timeSteps);
@@ -45,5 +41,10 @@ void MCMC(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
           Eigen::VectorXd *y_t, Eigen::MatrixXd &F, Eigen::MatrixXd &I,
           const dim_t N, const dim_t d, const dim_t timeSteps,
           std::string resampler_opt, std::string distribution_opt, const float df);
+
+void MCMC_step(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
+               Eigen::VectorXd *y_t, Eigen::MatrixXd &F, Eigen::MatrixXd &I,
+               const dim_t N, const dim_t d, const dim_t timeSteps,
+               std::string resampler_opt, std::string distribution_opt, const float df);
 
 #endif

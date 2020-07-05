@@ -83,7 +83,7 @@ R> CuSMC::MVN(mu, sigma)
 \end{CodeInput}
 
 \begin{CodeOutput}
-[1] 1.931198 1.741011
+[1] -1.161507 -4.146704
 \end{CodeOutput}
 \end{CodeChunk}
 
@@ -119,7 +119,7 @@ R> CuSMC::MVT(mu, sigma, nu)
 \end{CodeInput}
 
 \begin{CodeOutput}
-[1] -0.3027183 -2.4256343  2.3695596
+[1]  3.091552  1.811468 -2.445105
 \end{CodeOutput}
 \end{CodeChunk}
 
@@ -156,11 +156,47 @@ R> CuSMC::metropolis_hastings(w, N, B)
 \end{CodeInput}
 
 \begin{CodeOutput}
-  [1] 50 66 69 53 48 11 44 55 66 89 61 33 22  6 64 64 70 67 13 46 34 18 20 92 64
- [26] 89 64 55 94 81 18 20 11 23 84 94 74 11 95 89 91 91  2 39 77 33 69 97 34 47
- [51] 72 74 88 88 87 88 48 29  3 95 89 20 64 92 32 88 17 25 87  0 89 94 99 64  2
- [76] 33  5  9 18  3 57 64 44 71 36 30  2 25 55 55 47 43 44 92 73 60 47 69 41 47
+  [1] 84 11 39 24 17 29 48 93 72 80 67 29 85 39  4 87 16 74 12 87 16 48 55 29 51
+ [26] 51 21 51 58 51 30 30 84 40 33 97 40 58 77 39 13 27 85 17 86 32 16  3 74 51
+ [51]  9 58 24 80 28 57 54 54 33 79 67 96  5 22 42 86  0 83 79 40 70 40 49 28 18
+ [76] 38 13 84 42 31 81 15 44  0 32 77 54 83 77 32 99 77 86 22 48 29  9  9 48 84
 \end{CodeOutput}
+\end{CodeChunk}
+
+\hypertarget{installation}{%
+\subsection{Installation}\label{installation}}
+
+\begin{CodeChunk}
+
+\begin{CodeInput}
+R> install.packages("devtools")
+R> install.packages("githubinstall")
+\end{CodeInput}
+\end{CodeChunk}
+
+\hypertarget{installation-2}{%
+\subsection{Installation 2}\label{installation-2}}
+
+\begin{CodeChunk}
+
+\begin{CodeInput}
+R> library(devtools)
+R> library(githubinstall)
+R> githubinstall("CuSMC")
+R> library(CuSMC)
+\end{CodeInput}
+\end{CodeChunk}
+
+\hypertarget{installation-2-1}{%
+\subsection{Installation 2}\label{installation-2-1}}
+
+\begin{CodeChunk}
+
+\begin{CodeInput}
+R> library(devtools)
+R> library(githubinstall)
+R> githubinstall("CuSMC")
+\end{CodeInput}
 \end{CodeChunk}
 
 
