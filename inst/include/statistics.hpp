@@ -144,7 +144,7 @@ public:
               const unsigned int n_iterations) const;
 };
 
-class MultiVariateTStudentDistribution : StatisticalDistribution
+class MultiVariateTStudentDistribution : public StatisticalDistribution
 {
 private:
   Eigen::VectorXd mu;    // mean of distribution
