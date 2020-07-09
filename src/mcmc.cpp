@@ -58,7 +58,7 @@ void initialize(std::string distribution_opt, Eigen::VectorXd **x_t, Eigen::Vect
   Distributions["mvn"] =
       [](distParams_t params) { return MultiVariateNormalDistribution::getInstance(params); };
   Distributions["mvt"] =
-      [](distParams_t params) { return MultiVariateNormalDistribution::getInstance(params); };
+      [](distParams_t params) { return MultiVariateTStudentDistribution::getInstance(params); };
 
   // assert(Distributions.find(distribution_opt) != Distributions.end());
   // Eigen::VectorXd mean(d);
@@ -89,7 +89,7 @@ void propagate_K(std::string distribution_opt, Eigen::VectorXd **post_x_t, unsig
   Distributions["mvn"] =
       [](distParams_t params) { return MultiVariateNormalDistribution::getInstance(params); };
   Distributions["mvt"] =
-      [](distParams_t params) { return MultiVariateNormalDistribution::getInstance(params); };
+      [](distParams_t params) { return MultiVariateTStudentDistribution::getInstance(params); };
 
 // Initialize distribution with shuffled(theta) x_t
 #pragma omp parallel for
@@ -132,7 +132,7 @@ void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen
   Distributions["mvn"] =
       [](distParams_t params) { return MultiVariateNormalDistribution::getInstance(params); };
   Distributions["mvt"] =
-      [](distParams_t params) { return MultiVariateNormalDistribution::getInstance(params); };
+      [](distParams_t params) { return MultiVariateTStudentDistribution::getInstance(params); };
 
 #pragma omp parallel for
   for (unsigned i = 0; i < N; ++i)
@@ -176,7 +176,7 @@ void MCMC(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
   Distributions["mvn"] =
       [](distParams_t params) { return MultiVariateNormalDistribution::getInstance(params); };
   Distributions["mvt"] =
-      [](distParams_t params) { return MultiVariateNormalDistribution::getInstance(params); };
+      [](distParams_t params) { return MultiVariateTStudentDistribution::getInstance(params); };
 
   // Assert availability of resampler and distribution
   // assert(Resamplers.find(resampler_opt) != Resamplers.end());
@@ -226,7 +226,7 @@ void MCMC_step(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
   Distributions["mvn"] =
       [](distParams_t params) { return MultiVariateNormalDistribution::getInstance(params); };
   Distributions["mvt"] =
-      [](distParams_t params) { return MultiVariateNormalDistribution::getInstance(params); };
+      [](distParams_t params) { return MultiVariateTStudentDistribution::getInstance(params); };
 
   // Assert availability of resampler and distribution
   // assert(Resamplers.find(resampler_opt) != Resamplers.end());
