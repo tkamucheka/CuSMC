@@ -170,8 +170,8 @@ double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y) const
 {
   unsigned int n = y.rows();
   double sqrt2pi = std::sqrt(2 * M_PI);
-  double norm = std::pow(sqrt2pi, -n) *
-                std::pow(sigma.determinant(), -0.5);
+  double norm = 1 / (std::pow(sqrt2pi, n) *
+                     std::pow(sigma.determinant(), 0.5));
 
 #ifndef __GPU
 
@@ -193,7 +193,7 @@ double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y,
 {
   unsigned int n = x.rows();
   double sqrt2pi = std::sqrt(2 * M_PI);
-  double norm = std::pow(sqrt2pi, -n) * std::pow(E.determinant(), -0.5);
+  double norm = 1 / (std::pow(sqrt2pi, n) * std::pow(E.determinant(), 0.5));
   double quadform = (y - x).transpose() * E.inverse() * (y - x);
 
   return norm * exp(-0.5 * quadform);
@@ -294,20 +294,22 @@ void MultiVariateNormalDistribution::sample(Eigen::VectorXd &dist_draws,
 
 // Multi-Variate T Student Distribution ====================================
 
-MultiVariateTStudentDistribution::MultiVariateTStudentDistribution(const Eigen::VectorXd &m,
-                                                                   const Eigen::MatrixXd &s, const float &df)
+MultiVariateTStudentDistribution::MultiVariateTStudentDistribution(
+    const Eigen::VectorXd &m,
+    const Eigen::MatrixXd &s,
+    const float &nu)
 {
-  mu = m;    //location vector
-  sigma = s; //scale matrix
-  nu = df;   //degree of freedom
+  this->mu = m;    //location vector
+  this->sigma = s; //scale matrix
+  this->nu = nu;   //degree of freedom
 };
 MultiVariateTStudentDistribution::~MultiVariateTStudentDistribution(){};
 
 // Return class instance
-MultiVariateTStudentDistribution *MultiVariateTStudentDistribution::getInstance(const distParams_t dist)
+MultiVariateTStudentDistribution *MultiVariateTStudentDistribution::getInstance(const distParams_t params)
 {
   // MultiVariateTStudentDistribution MVT(mu, sigma, nu);
-  return new MultiVariateTStudentDistribution(dist.mu, dist.sigma, dist.nu);
+  return new MultiVariateTStudentDistribution(params.mu, params.sigma, params.nu);
 }
 
 // Distribution functions
