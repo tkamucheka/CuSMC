@@ -53,6 +53,8 @@ MVN(Eigen::VectorXd mu, Eigen::MatrixXd sigma)
 // [[Rcpp::export]]
 double MVNPDF(Eigen::VectorXd x, Eigen::VectorXd mu, Eigen::MatrixXd sigma)
 {
+  int n = mu.rows();
+  Eigen::MatrixXd F = Eigen::MatrixXd::Identity(n, n);
   MultiVariateNormalDistribution MVN(mu, sigma);
-  return MVN.pdf(x);
+  return MVN.pdf(x, F);
 }

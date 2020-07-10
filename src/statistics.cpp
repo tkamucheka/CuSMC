@@ -3,6 +3,8 @@
 
 #include "../inst/include/statistics.hpp"
 
+#include "../inst/include/distributions/mvn_dist.hpp"
+
 // Base class constructor/destructor
 // StatisticalDistribution::StatisticalDistribution() {}
 // StatisticalDistribution::~StatisticalDistribution() {}
@@ -166,24 +168,26 @@ MultiVariateNormalDistribution *MultiVariateNormalDistribution::getInstance(cons
 }
 
 // Distribution functions
-double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y) const
+double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const
 {
-  unsigned int n = y.rows();
+  unsigned int n = mu.rows();
   double sqrt2pi = std::sqrt(2 * M_PI);
   double norm = 1 / (std::pow(sqrt2pi, n) *
                      std::pow(sigma.determinant(), 0.5));
 
 #ifndef __GPU
 
-  Eigen::VectorXd y_mu = y - mu;
-  double quadform = y_mu.transpose() * sigma.inverse() * y_mu;
+  Eigen::VectorXd y_Fmu = y - (F * mu);
+  double quadform = y_Fmu.transpose() * sigma.inverse() * y_Fmu;
 
   return norm * exp(-0.5 * quadform);
 
 #else
+  double w;
+  mvn_pdf_kernel_wrapper(&w, y, mu, sigma.inverse(), F, norm, mu.rows());
+  Rcpp::Rcout << "PDF: " << w << std::endl;
 
-  return mvn_pdf_kernel_wrapper(y, mu, sigma.inverse(), F, norm, d);
-
+  return w;
 #endif
 };
 
@@ -222,6 +226,19 @@ Eigen::VectorXd MultiVariateNormalDistribution::stdev() const { return sigma; };
 void MultiVariateNormalDistribution::sample(Eigen::VectorXd &dist_draws,
                                             const unsigned int n_iterations) const
 {
+  // Find the eigen vectors of the covariance matrix
+  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>
+      eigen_solver(sigma);
+  Eigen::MatrixXd eigenvectors = eigen_solver.eigenvectors().real();
+
+  // Find the eigenvalues of the covariance matrix
+  Eigen::MatrixXd eigenvalues = eigen_solver.eigenvalues().real().asDiagonal();
+
+  // Find the transformation matrix
+  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(eigenvalues);
+  Eigen::MatrixXd sqrt_eigenvalues = es.operatorSqrt();
+  Eigen::MatrixXd Q = eigenvectors * sqrt_eigenvalues;
+
 #ifndef __GPU
   // Generator
   std::random_device randomDevice{};
@@ -251,24 +268,11 @@ void MultiVariateNormalDistribution::sample(Eigen::VectorXd &dist_draws,
   sum = sum - (static_cast<double>(n_iterations) / 2) * Eigen::VectorXd::Ones(n);
   x = sum / (std::sqrt(static_cast<double>(n_iterations) / 12));
 
-  // Find the eigen vectors of the covariance matrix
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>
-      eigen_solver(sigma);
-  Eigen::MatrixXd eigenvectors = eigen_solver.eigenvectors().real();
-
-  // Find the eigenvalues of the covariance matrix
-  Eigen::MatrixXd eigenvalues = eigen_solver.eigenvalues().real().asDiagonal();
-
-  // Find the transformation matrix
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(eigenvalues);
-  Eigen::MatrixXd sqrt_eigenvalues = es.operatorSqrt();
-  Eigen::MatrixXd Q = eigenvectors * sqrt_eigenvalues;
-
   dist_draws = (Q * x) + mu;
 
 #else
 
-  mvn_sample_kernel_wrapper(dist_draws, mu, Q, d);
+  mvn_sample_kernel_wrapper(dist_draws, mu, Q, mu.rows());
 
 #endif
 };

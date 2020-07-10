@@ -7,7 +7,7 @@
 #include <RcppEigen.h>
 
 // local includes
-#include <samplers.hpp>
+#include "../inst/include/samplers.hpp"
 
 using namespace Rcpp;
 

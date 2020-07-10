@@ -149,11 +149,11 @@ void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen
 
     // Initialize MVN distribution
     // mean  = x[t], covariance matrix sigma = E
-    distParams_t params = {F * post_x_t[t][i], E, df};
+    distParams_t params = {post_x_t[t][i], E, df};
     StatisticalDistribution *dist = Distributions[distributions_opt](params);
 
     // Get new weights from probality density function
-    w_t[t][i] = dist->pdf(y_t[t]);
+    w_t[t][i] = dist->pdf(y_t[t], F);
 
     delete dist;
   }

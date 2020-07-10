@@ -12,8 +12,8 @@
 
 // Local headers
 #include "types.hpp"
-#include "statistics.hpp"
 #include "linear_algebra.hpp"
+#include "statistics.hpp"
 #include "samplers.hpp"
 // #include "distributions/mvn_dist.hpp"
 
