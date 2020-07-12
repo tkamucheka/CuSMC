@@ -31,8 +31,7 @@ using namespace Rcpp;
 Eigen::VectorXd
 MVN(Eigen::VectorXd mu, Eigen::MatrixXd sigma)
 {
-  unsigned N = mu.rows();
-  Eigen::VectorXd draws = Eigen::VectorXd::Zero(N);
+  Eigen::VectorXd draws(mu.rows());
   MultiVariateNormalDistribution MVN(mu, sigma);
   MVN.sample(draws, 200);
   return draws;

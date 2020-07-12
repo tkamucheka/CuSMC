@@ -8,29 +8,28 @@
 #define TILE_SIZE 16
 
 __constant__ dim_t dev_d;
-__constant__ dim_t dev_N;
 __constant__ double dev_norm;
+__constant__ int dev_seed;
 
 __global__ void mvn_sample_setup_kernel(curandState_t *state)
 {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-  if (idx < dev_N * dev_d)
-    curand_init(1234LLU, idx, 0, &state[idx]);
+  if (idx < dev_d)
+    curand_init(dev_seed, idx, 0, &state[idx]);
 }
 
 __global__ void mvn_sample_norm_rand_kernel(double *rand_x, curandState_t *randState)
 {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-  if (idx < dev_N * dev_d)
+  if (idx < dev_d)
     rand_x[idx] = curand_normal_double(randState + idx);
 }
 
-__global__ void mvn_sample_kernel(double *post_x_t, double *pre_x_t, double *Q,
-                                  double *rand_norm_vars)
+__global__ void mvn_sample_kernel(double *post_x_t, double *pre_x_t,
+                                  double *Q, double *rand_norm_vars)
 {
-  __shared__ int matOffset;
   __shared__ int m;
   __shared__ int k;
   __shared__ int n;
@@ -38,16 +37,13 @@ __global__ void mvn_sample_kernel(double *post_x_t, double *pre_x_t, double *Q,
   __shared__ double _Q[TILE_SIZE][TILE_SIZE];
   __shared__ double _x[TILE_SIZE][TILE_SIZE];
 
-  // Get matrix id
-  matOffset = blockIdx.x * dev_d;
-
   // Get thread x and y
-  const int x = threadIdx.y;
-  const int y = threadIdx.z;
+  const int x = threadIdx.x;
+  const int y = threadIdx.y;
 
   // Get row[y] and column[x] index
-  int rowIdx = blockIdx.z * blockDim.z + threadIdx.z;
-  int colIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int rowIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int colIdx = blockIdx.x * blockDim.x + threadIdx.x;
 
   m = dev_d;
   k = dev_d;
@@ -62,20 +58,21 @@ __global__ void mvn_sample_kernel(double *post_x_t, double *pre_x_t, double *Q,
 
   // Initialize dot product and TILE_ROW
   double dotProduct = 0;
-  int TILE_ROW;
 
+  int TILE_ROW;
   for (unsigned t = 0; t < TILES; ++t)
   {
     // Figure out row of tiles we are at
     TILE_ROW = t * TILE_SIZE;
 
     // Read values from matrix A
-    _Q[y][x] =
-        (rowIdx < m && x + TILE_ROW < k) ? Q[(rowIdx * k) + x + TILE_ROW] : 0.0;
+    _Q[y][x] = (rowIdx < m && x + TILE_ROW < k)
+                   ? Q[(rowIdx * k) + x + TILE_ROW]
+                   : 0.0;
 
     // Read values from matrix B
     _x[y][x] = (colIdx < n && y + TILE_ROW < k)
-                   ? rand_norm_vars[matOffset + (y + TILE_ROW) * n + colIdx]
+                   ? rand_norm_vars[(y + TILE_ROW) * n + colIdx]
                    : 0.0;
 
     __syncthreads();
@@ -86,10 +83,10 @@ __global__ void mvn_sample_kernel(double *post_x_t, double *pre_x_t, double *Q,
     __syncthreads();
   }
 
-  int el = matOffset + (rowIdx * n + colIdx);
-  __syncthreads();
+  int el = rowIdx * n + colIdx;
 
-  // save dot product
+  // Return rand vector
+  __syncthreads();
   if (rowIdx < m && colIdx < n)
     post_x_t[el] = dotProduct + pre_x_t[el];
 }
@@ -102,6 +99,11 @@ void mvn_sample_kernel_wrapper(Eigen::VectorXd &draws,
   cudaError_t cuda_ret;
   const size_t VECTOR_SZ = sizeof(double) * d;
   const size_t COVMAT_SZ = sizeof(double) * d * d;
+
+  // Init random seed
+  time_t t;
+  srand((unsigned)time(&t));
+  int seed = rand() % 6297;
 
   double *host_draws = (double *)malloc(VECTOR_SZ);
 
@@ -134,8 +136,8 @@ void mvn_sample_kernel_wrapper(Eigen::VectorXd &draws,
 
   // Copy to device memory
   CUDA_CALL(cudaMemcpy(dev_mu, host_mu, VECTOR_SZ, cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dev_Q, host_Q, VECTOR_SZ, cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpyToSymbol(dev_d, &d, sizeof(dim_t)));
+  CUDA_CALL(cudaMemcpy(dev_Q, host_Q, COVMAT_SZ, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpyToSymbol(dev_seed, &seed, sizeof(int)));
   CUDA_CALL(cudaMemcpyToSymbol(dev_d, &d, sizeof(dim_t)));
 
   dim3 rand_blockDim(512);
@@ -156,8 +158,8 @@ void mvn_sample_kernel_wrapper(Eigen::VectorXd &draws,
 
   const unsigned BLOCK_SIZE = TILE_SIZE;
 
-  dim3 blockDim(1, BLOCK_SIZE, BLOCK_SIZE);
-  dim3 gridDim(1, ceil(double(d) / double(BLOCK_SIZE)),
+  dim3 blockDim(BLOCK_SIZE, BLOCK_SIZE);
+  dim3 gridDim(ceil(double(d) / double(BLOCK_SIZE)),
                ceil(double(d) / double(BLOCK_SIZE)));
 
   mvn_sample_kernel<<<gridDim, blockDim>>>(dev_draws, dev_mu, dev_Q,
@@ -166,8 +168,8 @@ void mvn_sample_kernel_wrapper(Eigen::VectorXd &draws,
   if (cuda_ret != cudaSuccess)
     FATAL("Unable to launch kernel: mvn_sample_kernel");
 
-  CUDA_CALL(
-      cudaMemcpy(host_draws, dev_draws, VECTOR_SZ, cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(host_draws, dev_draws, VECTOR_SZ,
+                       cudaMemcpyDeviceToHost));
   cuda_ret = cudaDeviceSynchronize();
   if (cuda_ret != cudaSuccess)
     FATAL("Unable to transfer data to host");
@@ -248,12 +250,11 @@ __global__ void mvn_pdf_kernel_y_minus_Fmu(double *dev_alpha,
     __syncthreads();
   }
 
-  // int el = rowIdx * n + colIdx;
-  // __syncthreads();
+  int el = rowIdx * n + colIdx;
 
   // save dot product
-  int el = rowIdx * n + colIdx;
-  if (blockIdx.x < dev_N && rowIdx < m && colIdx < n)
+  __syncthreads();
+  if (rowIdx < m && colIdx < n)
     dev_alpha[el] = dev_y[el] - dotProduct;
 }
 
@@ -318,12 +319,12 @@ __global__ void mvn_pdf_kernel_Einv_alpha(double *dev_Ealpha,
     __syncthreads();
   }
 
-  // int el = matOffset + (rowIdx * n + colIdx);
-  // __syncthreads();
+  int el = rowIdx * n + colIdx;
 
   // save dot product
+  __syncthreads();
   if (rowIdx < m && colIdx < n)
-    dev_Ealpha[rowIdx * n + colIdx] = dotProduct;
+    dev_Ealpha[el] = dotProduct;
 }
 
 __global__ void mvn_pdf_kernel(double *dev_w, double *dev_alpha,
@@ -386,11 +387,13 @@ __global__ void mvn_pdf_kernel(double *dev_w, double *dev_alpha,
     __syncthreads();
   }
 
-  // int el = blockIdx.x;
-  // __syncthreads();
-
-  // save dot product
-  if (rowIdx < m && colIdx < n)
+  // NOTE:
+  // We only care about the result in threadIdx.x == 0 and threadIdx.y == 0,
+  // where we are guaranteed a correct solution because threadIdx.x < d and
+  // threadIdx.y < d, so threadIdx.x == threadIdx.y == 0 lies inside the solution
+  // space. Other threads may be having 0 or NaN solutions.
+  __syncthreads();
+  if (x == 0 && y == 0)
     *dev_w = dev_norm * exp(-0.5 * quadform);
 }
 
@@ -426,13 +429,12 @@ void mvn_pdf_kernel_wrapper(double *w,
   if (cuda_ret != cudaSuccess)
     FATAL("Unable to allocate menory on device");
 
-  double *host_w;
+  double host_w;
   double *host_y;
   double *host_mu;
   double *host_E_inv;
   double *host_F;
 
-  host_w = (double *)malloc(WEIGHT_SZ);
   host_y = (double *)malloc(PARTICLE_SZ);
   host_mu = (double *)malloc(PARTICLE_SZ);
   host_E_inv = (double *)malloc(COVMAT_SZ);
@@ -489,12 +491,13 @@ void mvn_pdf_kernel_wrapper(double *w,
   if (cuda_ret != cudaSuccess)
     FATAL("Unable to launch kernel: mvnpdf_kernel");
 
-  CUDA_CALL(cudaMemcpy(host_w, dev_w, WEIGHT_SZ, cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(&host_w, dev_w, WEIGHT_SZ, cudaMemcpyDeviceToHost));
   cuda_ret = cudaDeviceSynchronize();
   if (cuda_ret != cudaSuccess)
     FATAL("Unable to transfer data from device");
 
-  w = host_w;
+  // w = host_w;
+  *w = host_w;
 
   // Reset device
   cudaDeviceReset();
@@ -506,7 +509,7 @@ void mvn_pdf_kernel_wrapper(double *w,
   cudaFree(dev_E_inv);
 
   // Free host memory
-  free(host_w);
+  // free(host_w);
   free(host_mu);
   free(host_y);
   free(host_E_inv);

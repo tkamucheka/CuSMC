@@ -9,6 +9,8 @@
 #include <curand.h>
 #include <curand_kernel.h>
 #include <random>
+#include <time.h>
+#include <stdlib.h>
 
 // Local headers
 #include "../types.hpp"

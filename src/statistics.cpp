@@ -185,7 +185,8 @@ double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y, const Eigen
 #else
   double w;
   mvn_pdf_kernel_wrapper(&w, y, mu, sigma.inverse(), F, norm, mu.rows());
-  Rcpp::Rcout << "PDF: " << w << std::endl;
+  // DEBUG:
+  // Rcpp::Rcout << "PDF: " << w << std::endl;
 
   return w;
 #endif
