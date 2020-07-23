@@ -78,6 +78,25 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// sim
+List sim(unsigned& N, unsigned& d, unsigned& timeSteps, Eigen::VectorXd m0, Eigen::MatrixXd C0, Eigen::MatrixXd F, float df, std::string resampler, std::string distribution);
+RcppExport SEXP _CuSMC_sim(SEXP NSEXP, SEXP dSEXP, SEXP timeStepsSEXP, SEXP m0SEXP, SEXP C0SEXP, SEXP FSEXP, SEXP dfSEXP, SEXP resamplerSEXP, SEXP distributionSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< unsigned& >::type N(NSEXP);
+    Rcpp::traits::input_parameter< unsigned& >::type d(dSEXP);
+    Rcpp::traits::input_parameter< unsigned& >::type timeSteps(timeStepsSEXP);
+    Rcpp::traits::input_parameter< Eigen::VectorXd >::type m0(m0SEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type C0(C0SEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type F(FSEXP);
+    Rcpp::traits::input_parameter< float >::type df(dfSEXP);
+    Rcpp::traits::input_parameter< std::string >::type resampler(resamplerSEXP);
+    Rcpp::traits::input_parameter< std::string >::type distribution(distributionSEXP);
+    rcpp_result_gen = Rcpp::wrap(sim(N, d, timeSteps, m0, C0, F, df, resampler, distribution));
+    return rcpp_result_gen;
+END_RCPP
+}
 // step
 List step(unsigned& N, unsigned& d, unsigned& timeSteps, Eigen::MatrixXd Y, Eigen::MatrixXd F, float df, std::string resampler, std::string distribution);
 RcppExport SEXP _CuSMC_step(SEXP NSEXP, SEXP dSEXP, SEXP timeStepsSEXP, SEXP YSEXP, SEXP FSEXP, SEXP dfSEXP, SEXP resamplerSEXP, SEXP distributionSEXP) {
@@ -116,6 +135,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_CuSMC_MVT", (DL_FUNC) &_CuSMC_MVT, 3},
     {"_CuSMC_MVTPDF", (DL_FUNC) &_CuSMC_MVTPDF, 4},
     {"_CuSMC_run", (DL_FUNC) &_CuSMC_run, 10},
+    {"_CuSMC_sim", (DL_FUNC) &_CuSMC_sim, 9},
     {"_CuSMC_step", (DL_FUNC) &_CuSMC_step, 8},
     {"_CuSMC_metropolis_hastings", (DL_FUNC) &_CuSMC_metropolis_hastings, 3},
     {NULL, NULL, 0}

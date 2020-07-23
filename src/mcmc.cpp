@@ -35,7 +35,7 @@ void generateInput(Eigen::VectorXd *prior_x_t, Eigen::VectorXd *y_t,
 
     prior_x_t[t] = (G * prior_x_t[t - 1]) + eps_t;
     y_t[t] = (F * prior_x_t[t]) + e_t;
-  }
+  } 
 }
 
 template <typename K, typename V>
@@ -154,7 +154,7 @@ void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen
 
     // Get new weights from probality density function
     w_t[t][i] = dist->pdf(y_t[t], F);
-
+    
     delete dist;
   }
 }
@@ -255,7 +255,7 @@ void MCMC_step(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
     propagate_K(distribution_opt, post_x_t, a_t, Q, N, d, t, df);
 
     // Resample weights
-    reweight_G(distribution_opt, w_t, y_t, post_x_t, norm, E_inv, E, F, N, d, t, df);
+    reweight_G(distribution_opt, w_t, y_t, post_x_t, 5.0, E_inv, E, F, N, d, t, df);
   }
 }
 
