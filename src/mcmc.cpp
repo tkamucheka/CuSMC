@@ -255,7 +255,7 @@ void MCMC_step(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
     propagate_K(distribution_opt, post_x_t, a_t, Q, N, d, t, df);
 
     // Resample weights
-    reweight_G(distribution_opt, w_t, y_t, post_x_t, 5.0, E_inv, E, F, N, d, t, df);
+    reweight_G(distribution_opt, w_t, y_t, post_x_t, norm, E_inv, E, F, N, d, t, df);
   }
 }
 
