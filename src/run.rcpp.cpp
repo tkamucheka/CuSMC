@@ -51,8 +51,9 @@ struct env_t
 // [[Rcpp::export]]
 List run(unsigned &N, unsigned &d, unsigned &timeSteps,
          Eigen::MatrixXd Y, Eigen::VectorXd m0, Eigen::MatrixXd C0, Eigen::MatrixXd F,
-         float df, std::string resampler, std::string distribution)
+         float df, std::string resampler, std::string distribution, unsigned p=0)
 {
+  assert(p < N);
   // Setup Environment
   // Dimensions
   ENV.d = d;
@@ -89,6 +90,7 @@ List run(unsigned &N, unsigned &d, unsigned &timeSteps,
   float runtime;
   particle_filter(post_x_t, w_t, a_t, ENV.y_t, ENV.F, ENV.G, ENV.m0, ENV.C0,
                   ENV.d, N, ENV.timeSteps, runtime, resampler, distribution, ENV.df);
+  writeOutput(ENV.y_t, w_t, post_x_t, N, ENV.d, ENV.timeSteps,p);
 
   // Build return object
   List ret;
@@ -98,7 +100,7 @@ List run(unsigned &N, unsigned &d, unsigned &timeSteps,
 
   return ret;
 }
-
+/*
 //' Simulations sim: y_t is generated
 //'
 //' @param N            [integer]: Number of particles is solution.
@@ -158,7 +160,7 @@ List sim(unsigned &N, unsigned &d, unsigned &timeSteps,
   generateInput(prior_x_t, ENV.y_t, ENV.F, ENV.G, E_1, E_2, N, ENV.d, ENV.timeSteps);
   particle_filter(post_x_t, w_t, a_t, ENV.y_t, ENV.F, ENV.G, ENV.m0, ENV.C0,
                   ENV.d, N, ENV.timeSteps, runtime, resampler, distribution, ENV.df);
-  writeOutput(prior_x_t, ENV.y_t, w_t, post_x_t, N, ENV.d, ENV.timeSteps);
+  writeOutput_ysim(prior_x_t, ENV.y_t, w_t, post_x_t, N, ENV.d, ENV.timeSteps);
 
   // Build return object
   List ret;
@@ -168,7 +170,7 @@ List sim(unsigned &N, unsigned &d, unsigned &timeSteps,
 
   return ret;
 }
-
+*/
 //' Simulations step
 //'
 //' @param N            [integer]: Number of particles is solution.
