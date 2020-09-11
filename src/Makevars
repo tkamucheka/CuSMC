@@ -2,7 +2,7 @@ PACKRAT_LIBDIR 	= "$(R_HOME)/bin$(R_ARCH_BIN)/Rscript" -e â€˜packrat::lib_dir()â
 
 OS_NAME 				:= $(shell uname -s | tr A-Z a-z)
 
-CC 							= g++
+CXX 						= g++
 NVCC        		= nvcc
 
 OPENMP_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
@@ -26,7 +26,7 @@ ifeq ($(OS_NAME), darwin)
 NVCC        		= /usr/local/cuda/bin/nvcc
 OPENMP_CXXFLAGS = -Xpreprocessor -fopenmp
 OPENMP_LIBS 		= -lomp
-CUDA_XCOMPILER  = $(OPENMP_CXXFLAGS),-D__GPU,\
+CUDA_XCOMPILER  = $(OPENMP_CXXFLAGS),\
 									-Wno-unknown-pragmas,-Wno-everything,-Wno-overloaded-virtual
 CUDA_INCLUDES 	= -isystem /usr/local/cuda/include
 CUDA_LIB    		= -L/usr/local/cuda/lib/ -Wl -rpath /usr/local/cuda/lib -lcudart
@@ -41,11 +41,11 @@ CXX_STD 				= CXX14
 
 PKG_INCLUDES 		= -I ../inst/include
 
-CC_FLAGS       	= -O3 --std=c++17 -Xpreprocessor -fopenmp -fPIC \
+CC_FLAGS       	= -O3 -std=c++17 -Xpreprocessor -fopenmp -fPIC \
 									-I/usr/local/include $(R_INCLUDES) $(PKG_INCLUDES) \
 									-Wno-unknown-pragmas -Wno-everything -Wno-overloaded-virtual
 
-NVCC_FLAGS  		= --x cu --std=c++14 -Xcompiler "$(CUDA_XCOMPILER)" \
+NVCC_FLAGS  		= --x cu -std=c++14 -Xcompiler "$(CUDA_XCOMPILER)" \
 									-I/usr/local/include $(CUDA_INCLUDES) $(R_INCLUDES) $(PKG_INCLUDES)
 									
 NVCC_LD_FLAGS		= $(CUDA_LIB) $(OPENMP_LIBS)
@@ -64,8 +64,8 @@ CC_OBJECTS      = linear_algebra.o mcmc.o particle_filter.o samplers.o \
 									utility.o
 CXX_OBJECTS 		= statistics.o
 CUDA_OBJECTS		= mvn_dist.cu.o
-PKG_OBJECTS			= $(CC_OBJECTS) $(CXX_OBJECTS) 
-OBJECTS 				= $(PKG_OBJECTS) $(API_OBJECTS) $(CUDA_OBJECTS)
+PKG_OBJECTS			=  
+OBJECTS 				= $(PKG_OBJECTS) $(API_OBJECTS) $(CUDA_OBJECTS) $(CC_OBJECTS) $(CXX_OBJECTS)
 
 all: $(OBJECTS)
 
@@ -79,12 +79,12 @@ $(CXX_OBJECTS):
 	@echo CC -c $(NVCC_FLAGS) -o $@ $*.cpp
 	@if [ -e /usr/local/cuda/bin/nvcc ]; then 	\
 	$(NVCC) -c $(NVCC_FLAGS) -o $@ $*.cpp; 			\
-	else 																			\
+	else 																				\
 	$(CC) -c $(CC_FLAGS) -o $@ $*.cpp; 					\
 	fi;
 
 $(CC_OBJECTS):
-	$(CC) -c $(CC_FLAGS) -o $@ $*.cpp
+	$(CXX) -c $(CC_FLAGS) -o $@ $*.cpp
 
 clean:
 	rm $(OBJECTS)

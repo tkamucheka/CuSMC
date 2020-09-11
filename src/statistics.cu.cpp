@@ -152,19 +152,15 @@ void StandardNormalDistribution::sample(const std::vector<double> &uniform_draws
 
 // Multi-Variate Normal Normal Distribution ====================================
 
-MultiVariateNormalDistribution::MultiVariateNormalDistribution(const Eigen::VectorXd &m,
-                                                               const Eigen::MatrixXd &s)
-{
-  mu = m;
-  sigma = s;
-};
+MultiVariateNormalDistribution::MultiVariateNormalDistribution(){};
 MultiVariateNormalDistribution::~MultiVariateNormalDistribution(){};
 
 // Return class instance
 MultiVariateNormalDistribution *MultiVariateNormalDistribution::getInstance(const distParams_t params)
 {
   // MultiVariateNormalDistribution MVN(mu, sigma);
-  return new MultiVariateNormalDistribution(params.mu, params.sigma);
+  MultiVariateNormalDistribution *MVN = new MultiVariateNormalDistribution();
+  MVN->
 }
 
 // Distribution functions
@@ -192,18 +188,6 @@ double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y, const Eigen
 #endif
 };
 
-double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y,
-                                           const Eigen::VectorXd &x,
-                                           const Eigen::MatrixXd &E) const
-{
-  unsigned int n = x.rows();
-  double sqrt2pi = std::sqrt(2 * M_PI);
-  double norm = 1 / (std::pow(sqrt2pi, n) * std::pow(E.determinant(), 0.5));
-  double quadform = (y - x).transpose() * E.inverse() * (y - x);
-
-  return norm * exp(-0.5 * quadform);
-};
-
 //Calculate constant norm
 double MultiVariateNormalDistribution::getNorm() const
 {
@@ -224,77 +208,103 @@ Eigen::VectorXd MultiVariateNormalDistribution::mean() const { return mu; };
 Eigen::VectorXd MultiVariateNormalDistribution::stdev() const { return sigma; };
 
 // Random draw function
-void MultiVariateNormalDistribution::sample(Eigen::VectorXd &dist_draws,
-                                            const unsigned int n_iterations) const
+void MultiVariateNormalDistribution::sample(Eigen::VectorXd **post_x_t, unsigned *a_t,
+                                            const Eigen::MatrixXd Q, const dim_t N, const dim_t d,
+                                            const dim_t t)
 {
-  // Find the eigen vectors of the covariance matrix
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>
-      eigen_solver(sigma);
-  Eigen::MatrixXd eigenvectors = eigen_solver.eigenvectors().real();
+  cudaError_t cuda_ret;
+  const size_t VECTOR_SZ = sizeof(double) * N * d;
+  const size_t COVMAT_SZ = sizeof(double) * d * d;
 
-  // Find the eigenvalues of the covariance matrix
-  Eigen::MatrixXd eigenvalues = eigen_solver.eigenvalues().real().asDiagonal();
+  double *dev_pre_x_t;
+  double *dev_post_x_t;
+  double *dev_Q;
+  double *dev_norm_rand;
+  curandState *devStates;
 
-  // Find the transformation matrix
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(eigenvalues);
-  Eigen::MatrixXd sqrt_eigenvalues = es.operatorSqrt();
-  Eigen::MatrixXd Q = eigenvectors * sqrt_eigenvalues;
-
-#ifndef __GPU
-  // Generator
-  std::random_device randomDevice{};
-  std::mt19937 generator{randomDevice()};
-  // Uniform Distribution between 0 and 1
-  std::uniform_real_distribution<double> U{0, 1};
-
-  std::normal_distribution<double> N{0, 1};
-
-  unsigned int n = mu.rows();
-
-  // Generate x from the N(0, I) distribution
-  Eigen::VectorXd x(n);
-  Eigen::VectorXd sum(n);
-  sum.setZero();
-
-  for (unsigned int i = 0; i < n_iterations; i++)
+  // shuffle pre_x_t
+  Eigen::VectorXd *host_pre_x_t = new Eigen::VectorXd[N];
+  for (unsigned i = 0; i < N; ++i)
   {
-#pragma omp parallel for
-    for (unsigned j = 0; j < n; ++j)
-      x[j] = N(generator);
-
-    // x.setRandom();
-    x = 0.5 * (x + Eigen::VectorXd::Ones(n));
-    sum = sum + x;
+    host_pre_x_t[i] = Eigen::VectorXd(d);
+    host_pre_x_t[i] = post_x_t[t - 1][a_t[t * N + i]];
   }
-  sum = sum - (static_cast<double>(n_iterations) / 2) * Eigen::VectorXd::Ones(n);
-  x = sum / (std::sqrt(static_cast<double>(n_iterations) / 12));
 
-  dist_draws = (Q * x) + mu;
+  double *host_x_t = (double *)malloc(sizeof(double) * N * d);
+  for (int y = 0; y < N; ++y)
+    for (unsigned x = 0; x < d; ++x)
+      host_x_t[y * d + x] = host_pre_x_t[y][x];
 
-#else
+  /* Allocate space for prng states on device */
+  CUDA_CALL(cudaMalloc((void **)&devStates, N * d * sizeof(curandState)));
+  CUDA_CALL(cudaMalloc((void **)&dev_norm_rand, VECTOR_SZ));
+  CUDA_CALL(cudaMalloc((void **)&dev_pre_x_t, VECTOR_SZ));
+  CUDA_CALL(cudaMalloc((void **)&dev_post_x_t, VECTOR_SZ));
+  CUDA_CALL(cudaMalloc((void **)&dev_Q, COVMAT_SZ));
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to allocate memory on device");
 
-  mvn_sample_kernel_wrapper(dist_draws, mu, Q, mu.rows());
+  // double *host_norm_rand;
+  double *host_Q;
 
-#endif
-};
+  // host_norm_rand = (double *)malloc(VECTOR_SZ);
+  host_Q = (double *)malloc(COVMAT_SZ);
 
-void MultiVariateNormalDistribution::sample(Eigen::VectorXd &dist_draws,
-                                            const Eigen::VectorXd &x,
-                                            const unsigned int n_iterations) const
-{
-  // Find the eigen vectors of the covariance matrix
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigen_solver(sigma);
-  Eigen::MatrixXd eigenvectors = eigen_solver.eigenvectors().real();
+  for (size_t i = 0; i < d; ++i)
+    for (size_t j = 0; j < d; ++j)
+      host_Q[i * d + j] = Q(i, j);
 
-  // Find the eigenvalues of the covariance matrix
-  Eigen::MatrixXd eigenvalues = eigen_solver.eigenvalues().real().asDiagonal();
+  CUDA_CALL(cudaMemcpy(dev_pre_x_t, host_x_t, VECTOR_SZ, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dev_Q, host_Q, COVMAT_SZ, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpyToSymbol(dev_d, &d, sizeof(dim_t)));
+  CUDA_CALL(cudaMemcpyToSymbol(dev_N, &N, sizeof(dim_t)));
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to transfer data to device");
 
-  // Find the transformation matrix
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(eigenvalues);
-  Eigen::MatrixXd sqrt_eigenvalues = es.operatorSqrt();
-  Eigen::MatrixXd Q = eigenvectors * sqrt_eigenvalues;
+  dim3 rand_blockDim(512);
+  int rand_gridDim = ceil(double(N * d) / double(rand_blockDim.x));
 
-  dist_draws = (Q * x) + mu;
+  /* Setup prng states */
+  setup_kernel<<<rand_gridDim, rand_blockDim>>>(devStates);
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to launch kernel: setup_kernel");
+
+  // Generate random numbers
+  norm_rand_kernel<<<rand_gridDim, rand_blockDim>>>(dev_norm_rand, devStates);
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to launch kernel: norm_rand_kernel");
+
+  const unsigned int BLOCK_SIZE = TILE_SIZE;
+
+  dim3 blockDim(1, BLOCK_SIZE, BLOCK_SIZE);
+  dim3 gridDim(N, ceil(double(d) / double(BLOCK_SIZE)),
+               ceil(double(d) / double(BLOCK_SIZE)));
+
+  mvn_sample_kernel_xtra<<<gridDim, blockDim>>>(dev_post_x_t, dev_pre_x_t,
+                                                dev_Q, dev_norm_rand);
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to launch kernel: mvn_sample_kernel");
+
+  CUDA_CALL(
+      cudaMemcpy(host_x_t, dev_post_x_t, VECTOR_SZ, cudaMemcpyDeviceToHost));
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to transfer data to host");
+
+  for (unsigned i = 0; i < N; ++i)
+    for (unsigned j = 0; j < d; ++j)
+      post_x_t[t][i][j] = host_x_t[i * d + j];
+
+  cudaFree(devStates);
+  cudaFree(dev_pre_x_t);
+  cudaFree(dev_post_x_t);
+  cudaFree(dev_Q);
+  free(host_x_t);
 };
 
 // Multi-Variate T Student Distribution ====================================
