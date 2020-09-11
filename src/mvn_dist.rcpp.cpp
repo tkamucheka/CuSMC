@@ -33,7 +33,7 @@ MVN(Eigen::VectorXd mu, Eigen::MatrixXd sigma)
 {
   Eigen::VectorXd draws(mu.rows());
   MultiVariateNormalDistribution MVN(mu, sigma);
-  MVN.sample(draws, 200);
+  MVN.sample(draws, sigma, 200);
   return draws;
 }
 

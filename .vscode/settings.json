@@ -1,6 +1,8 @@
 {
   "C_Cpp.dimInactiveRegions": true,
   "files.associations": {
-    "algorithm": "cpp"
+    "Makevars": "makefile",
+    "algorithm": "cpp",
+    "random": "cpp"
   }
 }

@@ -19,23 +19,26 @@ void generateInput(Eigen::VectorXd *prior_x_t, Eigen::VectorXd *y_t,
   Eigen::MatrixXd I_0 = Eigen::MatrixXd::Identity(d, d);
   // I_0 << 1, 0, 0, 0, 1, 0, 0, 0, 1;
 
+  Eigen::MatrixXd E1 = 0.001 * I_1;
+  Eigen::MatrixXd E2 = 0.001 * I_2;
+
   MultiVariateNormalDistribution MVNx(Eigen::VectorXd::Zero(d), I_0);
-  MultiVariateNormalDistribution MVN1(Eigen::VectorXd::Zero(d), 0.001 * I_1);
-  MultiVariateNormalDistribution MVN2(Eigen::VectorXd::Zero(d), 0.001 * I_2);
+  MultiVariateNormalDistribution MVN1(Eigen::VectorXd::Zero(d), I_1);
+  MultiVariateNormalDistribution MVN2(Eigen::VectorXd::Zero(d), I_2);
 
   // Calculate x_t[0][N]
-  MVNx.sample(prior_x_t[0], 200);
+  MVNx.sample(prior_x_t[0], I_0, 200);
 
   // Generate input data y_t[t][i]
   for (unsigned t = 1; t < timeSteps; ++t)
   {
     // Generate noise e & eps
-    MVN1.sample(e_t, 200);
-    MVN2.sample(eps_t, 200);
+    MVN1.sample(e_t, E1, 200);
+    MVN2.sample(eps_t, E2, 200);
 
     prior_x_t[t] = (G * prior_x_t[t - 1]) + eps_t;
     y_t[t] = (F * prior_x_t[t]) + e_t;
-  } 
+  }
 }
 
 void initialize(std::string distribution_opt, Eigen::VectorXd **x_t, Eigen::VectorXd *w_t,
@@ -53,7 +56,11 @@ void initialize(std::string distribution_opt, Eigen::VectorXd **x_t, Eigen::Vect
   // assert(Distributions.find(distribution_opt) != Distributions.end());
 
   // MultiVariateNormalDistribution mvn(m0, C0); %Quan Mai changed to distribution_opt
-  distParams_t params = {m0, C0, df};
+  distParams_t params;
+  params.mu = m0;
+  params.sigma = C0;
+  params.nu = df;
+
   StatisticalDistribution *dist = Distributions[distribution_opt](params);
 
   // Initialize thetas
@@ -89,7 +96,7 @@ void propagate_K(std::string distribution_opt, Eigen::VectorXd **post_x_t, unsig
 
   // Find the eigen vectors of the covariance matrix
   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>
-      eigen_solver(sigma);
+      eigen_solver(Q);
   Eigen::MatrixXd eigenvectors = eigen_solver.eigenvectors().real();
 
   // Find the eigenvalues of the covariance matrix
@@ -98,7 +105,7 @@ void propagate_K(std::string distribution_opt, Eigen::VectorXd **post_x_t, unsig
   // Find the transformation matrix
   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(eigenvalues);
   Eigen::MatrixXd sqrt_eigenvalues = es.operatorSqrt();
-  Eigen::MatrixXd Q = eigenvectors * sqrt_eigenvalues;
+  Eigen::MatrixXd _Q = eigenvectors * sqrt_eigenvalues;
 
 // Initialize distribution with shuffled(theta) x_t
 #ifndef __GPU
@@ -126,7 +133,7 @@ void propagate_K(std::string distribution_opt, Eigen::VectorXd **post_x_t, unsig
     StatisticalDistribution *dist = Distributions[distribution_opt](params);
 
     // Sample new (thetas) x_t
-    dist->sample(post_x_t[t][i], Q, 200);
+    dist->sample(post_x_t[t][i], _Q, 200);
 
     delete dist;
   }
@@ -137,14 +144,14 @@ void propagate_K(std::string distribution_opt, Eigen::VectorXd **post_x_t, unsig
   params.a_t = a_t;
   params.sigma = Eigen::MatrixXd::Identity(d, d);
   params.nu = df;
-  params.Q = Q;
+  params.Q = _Q;
   params.N = N;
   params.d = d;
   params.t = t;
 
   StatisticalDistribution *dist = Distributions[distribution_opt](params);
 
-  dist->sample(post_x_t, a_t, Q, N, d, t);
+  dist->sample(post_x_t, a_t, _Q, N, d, t);
 
   delete dist;
 
@@ -180,12 +187,16 @@ void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen
 
     // Initialize MVN distribution
     // mean  = x[t], covariance matrix sigma = E
-    distParams_t params = {post_x_t[t][i], E, df};
+    distParams_t params;
+    params.mu = post_x_t[t][i];
+    params.sigma = E;
+    params.nu = df;
+
     StatisticalDistribution *dist = Distributions[distributions_opt](params);
 
     // Get new weights from probality density function
     w_t[t][i] = dist->pdf(y_t[t], F);
-    
+
     delete dist;
   }
 
@@ -242,7 +253,11 @@ void MCMC(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
   eigenSolver(Q, E);
 
   // Get norm from distribution
-  distParams_t params = {Eigen::VectorXd::Zero(d), E, df};
+  distParams_t params;
+  params.mu = Eigen::VectorXd::Zero(d);
+  params.sigma = E;
+  params.nu = df;
+
   StatisticalDistribution *dist = Distributions[distribution_opt](params);
   double norm = dist->getNorm();
 
@@ -292,7 +307,11 @@ void MCMC_step(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
   eigenSolver(Q, E);
 
   // Get norm from distribution
-  distParams_t params = {Eigen::VectorXd::Zero(d), E, df};
+  distParams_t params;
+  params.mu = Eigen::VectorXd::Zero(d);
+  params.sigma = E;
+  params.nu = df;
+
   StatisticalDistribution *dist = Distributions[distribution_opt](params);
   double norm = dist->getNorm();
 
