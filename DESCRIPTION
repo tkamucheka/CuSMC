@@ -18,7 +18,7 @@ LinkingTo:
     RcppEigen
 LazyData: true
 RoxygenNote: 7.0.2
-SystemRequirements: GNU make
+SystemRequirements: GNU make, C++14
 Encoding: UTF-8
 Depends: 
     R (>= 2.10)
