@@ -79,7 +79,7 @@ $(CXX_OBJECTS):
 	@echo CC -c $(NVCC_FLAGS) -o $@ $*.cpp
 	@if [ -e /usr/local/cuda/bin/nvcc ]; then 	\
 	$(NVCC) -c $(NVCC_FLAGS) -o $@ $*.cpp; 			\
-	else 																			\
+	else 																				\
 	$(CC) -c $(CC_FLAGS) -o $@ $*.cpp; 					\
 	fi;
 

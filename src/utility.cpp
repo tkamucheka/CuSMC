@@ -31,4 +31,11 @@ float elapsedTime(Timer timer)
                   (timer.endTime.tv_usec - timer.startTime.tv_usec) / 1.0e6));
 }
 
+template <typename K, typename V>
+void print_map(std::map<K, V> const &m)
+{
+  for (auto it = m.cbegin(); it != m.cend(); ++it)
+    Rcpp::Rcout << "{ " << (*it).first << " }\n";
+}
+
 #endif

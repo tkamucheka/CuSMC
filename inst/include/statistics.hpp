@@ -1,3 +1,5 @@
+#ifndef __GPU
+
 #ifndef __STATISTICS_HPP
 #define __STATISTICS_HPP
 
@@ -20,9 +22,13 @@
 // Distribution initializations options object
 struct distParams_t
 {
+  int N, d, t;
+  Eigen::VectorXd **post_x_t;
+  unsigned *a_t;
   Eigen::VectorXd mu;
   Eigen::MatrixXd sigma;
   float nu = 0.0f;
+  Eigen::MatrixXd Q;
 };
 
 class StatisticalDistribution
@@ -142,10 +148,7 @@ public:
 
   // Random draw function
   void sample(Eigen::VectorXd &dist_draws,
-              const unsigned int n_iterations) const;
-
-  void sample(Eigen::VectorXd &dist_draws,
-              const Eigen::VectorXd &x,
+              const Eigen::MatrixXd Q,
               const unsigned int n_iterations) const;
 };
 
@@ -200,4 +203,5 @@ public:
   //             const unsigned int n_iterations);
 };
 
-#endif
+#endif // __STATISTICS_HPP
+#endif // __GPU
