@@ -64,8 +64,8 @@ CC_OBJECTS      = linear_algebra.o mcmc.o particle_filter.o samplers.o \
 									utility.o
 CXX_OBJECTS 		= statistics.o
 CUDA_OBJECTS		= mvn_dist.cu.o
-PKG_OBJECTS			= $(CC_OBJECTS) $(CXX_OBJECTS) $(CUDA_OBJECTS)
-OBJECTS 				= $(PKG_OBJECTS) $(API_OBJECTS)
+PKG_OBJECTS			= $(CC_OBJECTS) $(CXX_OBJECTS) 
+OBJECTS 				= $(PKG_OBJECTS) $(API_OBJECTS) $(CUDA_OBJECTS)
 
 all: $(OBJECTS)
 
