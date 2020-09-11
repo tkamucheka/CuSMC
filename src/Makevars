@@ -41,11 +41,11 @@ CXX_STD 				= CXX14
 
 PKG_INCLUDES 		= -I ../inst/include
 
-CC_FLAGS       	= -O3 --std=c++17 -Xpreprocessor -fopenmp -fPIC \
+CC_FLAGS       	= -O3 -std=c++17 -Xpreprocessor -fopenmp -fPIC \
 									-I/usr/local/include $(R_INCLUDES) $(PKG_INCLUDES) \
 									-Wno-unknown-pragmas -Wno-everything -Wno-overloaded-virtual
 
-NVCC_FLAGS  		= --x cu --std=c++14 -Xcompiler "$(CUDA_XCOMPILER)" \
+NVCC_FLAGS  		= --x cu -std=c++14 -Xcompiler "$(CUDA_XCOMPILER)" \
 									-I/usr/local/include $(CUDA_INCLUDES) $(R_INCLUDES) $(PKG_INCLUDES)
 									
 NVCC_LD_FLAGS		= $(CUDA_LIB) $(OPENMP_LIBS)
