@@ -73,8 +73,8 @@ NULL
 #' @param sampler      [string]: Resampling sampler
 #' @param distribution [string]: Distribution for sampling particles
 #' @export
-run <- function(N, d, timeSteps, Y, m0, C0, F, df, resampler, distribution) {
-    .Call('_CuSMC_run', PACKAGE = 'CuSMC', N, d, timeSteps, Y, m0, C0, F, df, resampler, distribution)
+run <- function(N, d, timeSteps, Y, m0, C0, F, df, resampler, distribution, p = 0L) {
+    .Call('_CuSMC_run', PACKAGE = 'CuSMC', N, d, timeSteps, Y, m0, C0, F, df, resampler, distribution, p)
 }
 
 #' Simulations step

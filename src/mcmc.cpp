@@ -35,7 +35,7 @@ void generateInput(Eigen::VectorXd *prior_x_t, Eigen::VectorXd *y_t,
 
     prior_x_t[t] = (G * prior_x_t[t - 1]) + eps_t;
     y_t[t] = (F * prior_x_t[t]) + e_t;
-  }
+  } 
 }
 
 void initialize(std::string distribution_opt, Eigen::VectorXd **x_t, Eigen::VectorXd *w_t,
@@ -185,7 +185,7 @@ void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen
 
     // Get new weights from probality density function
     w_t[t][i] = dist->pdf(y_t[t], F);
-
+    
     delete dist;
   }
 

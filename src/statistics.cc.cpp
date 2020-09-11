@@ -306,7 +306,7 @@ double MultiVariateTStudentDistribution::getNorm() const
 {
   int n = this->mu.rows();
   double pi_df = M_PI * this->nu;
-  double norm1 = std::pow(this->nu, (-0.5 * n)) * std::pow(this->sigma.determinant(), -0.5);
+  double norm1 = std::pow(pi_df, (-0.5 * n)) * std::pow(this->sigma.determinant(), -0.5);
   double norm2 = tgamma(0.5 * (this->nu + n)) / tgamma(0.5 * this->nu);
 
   return norm1 * norm2;

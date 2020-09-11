@@ -26,7 +26,7 @@ ifeq ($(OS_NAME), darwin)
 NVCC        		= /usr/local/cuda/bin/nvcc
 OPENMP_CXXFLAGS = -Xpreprocessor -fopenmp
 OPENMP_LIBS 		= -lomp
-CUDA_XCOMPILER  = $(OPENMP_CXXFLAGS),-D__GPU,\
+CUDA_XCOMPILER  = $(OPENMP_CXXFLAGS),\
 									-Wno-unknown-pragmas,-Wno-everything,-Wno-overloaded-virtual
 CUDA_INCLUDES 	= -isystem /usr/local/cuda/include
 CUDA_LIB    		= -L/usr/local/cuda/lib/ -Wl -rpath /usr/local/cuda/lib -lcudart
