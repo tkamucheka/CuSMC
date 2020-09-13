@@ -35,7 +35,7 @@ R_INCLUDES 			= -I $(R_INCLUDE_DIR) \
 									-isystem $(R_HOME)/library/RcppEigen/include
 endif
 
-NVCC_TEST       := $(shell if [ -e $(NVCC) ]; then echo 1; fi) 
+NVCC_TEST       := $(shell if [ -e $NVCC ]; then echo 1; fi) 
 
 CXX_STD 				= CXX14
 
@@ -55,32 +55,40 @@ PKG_CPPFLAGS 		= $(CUDA_INCLUDES) $(PKG_INCLUDES) $(OPENMP_CXXFLAGS) \
 									-D_FORTIFY_SOURCE=2 -Wno-ignored-attributes \
 									-Wno-unknown-pragmas -Wno-everything -Wno-overloaded-virtual 
 
-PKG_LIBS 				= $(NVCC_LD_FLAGS)
+ifeq ($NVCC_TEST,1)
+	PKG_LIBS = $(NVCC_LD_FLAGS)
+else
+	PKG_LIBS = $(OPENMP_LIBS)
+endif
 
 # Objects
 API_OBJECTS			= mvt_dist.rcpp.o mvn_dist.rcpp.o samplers.rcpp.o run.rcpp.o \
 									RcppExports.o
 CC_OBJECTS      = linear_algebra.o mcmc.o particle_filter.o samplers.o \
 									utility.o
-CXX_OBJECTS 		= statistics.o
+CXX_OBJECTS 		= statistics.cc.o
 CUDA_OBJECTS		= mvn_dist.cu.o
 PKG_OBJECTS			=  
-OBJECTS 				= $(PKG_OBJECTS) $(API_OBJECTS) $(CUDA_OBJECTS) $(CC_OBJECTS) $(CXX_OBJECTS)
+CUSMC_OBJECTS 	= $(PKG_OBJECTS) $(API_OBJECTS) $(CC_OBJECTS) $(CXX_OBJECTS)
 
-all: $(OBJECTS)
+all: $(CUSMC_OBJECTS)
 
 $(CUDA_OBJECTS):
 	@if [ -e /usr/local/cuda/bin/nvcc ]; then 	\
 	echo $(NVCC) -c $(NVCC_FLAGS) -o $@ $*.cpp; \
 	$(NVCC) -c $(NVCC_FLAGS) -o $@ $*.cpp; 			\
+	else 																				\
+	echo "Skipping CUDA sources..";							\
+	$(CXX) -c $(CC_FLAGS) -o $@ $*.cpp; 			  \
 	fi;
 
 $(CXX_OBJECTS):
-	@echo CC -c $(NVCC_FLAGS) -o $@ $*.cpp
-	@if [ -e /usr/local/cuda/bin/nvcc ]; then 	\
-	$(NVCC) -c $(NVCC_FLAGS) -o $@ $*.cpp; 			\
-	else 																				\
-	$(CC) -c $(CC_FLAGS) -o $@ $*.cpp; 					\
+	@if [ -e /usr/local/cuda/bin/nvcc ]; then 		\
+	echo $(NVCC) -c $(NVCC_FLAGS) -o $@ $*.cpp;		\
+	$(NVCC) -c $(NVCC_FLAGS) -o $@ $*.cpp; 				\
+	else 																					\
+	echo $(CXX) -c $(NVCC_FLAGS) -o $@ $*.cpp; 		\
+	$(CXX) -c $(CC_FLAGS) -o $@ $*.cpp; 					\
 	fi;
 
 $(CC_OBJECTS):

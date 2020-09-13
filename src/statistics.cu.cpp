@@ -1,3 +1,5 @@
+#ifdef __GPU
+
 #ifndef __STATISTICS_CPP
 #define __STATISTICS_CPP
 
@@ -424,5 +426,7 @@ void MultiVariateTStudentDistribution::sample(Eigen::VectorXd &dist_draws,
 
   dist_draws = chi.asDiagonal() * (Q * x) + mu; //x = dx1, mu = dx1, Q = dxd, chi = dx1
 };
+
+#endif
 
 #endif
