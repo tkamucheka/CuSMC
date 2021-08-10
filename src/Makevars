@@ -13,8 +13,8 @@ CUDA_INCLUDES 	= -isystem /usr/local/cuda/include
 CUDA_LIB    		= -L/usr/local/cuda/lib64 -lcudart
 
 R_INCLUDES 			= -I $(R_INCLUDE_DIR) \
-									-I $(HOME)/R/x86_64-pc-linux-gnu-library/3.6/Rcpp/include \
-									-isystem $(HOME)/R/x86_64-pc-linux-gnu-library/3.6/RcppEigen/include 
+									# -I $(HOME)/R/x86_64-pc-linux-gnu-library/3.6/Rcpp/include \
+									# -isystem $(HOME)/R/x86_64-pc-linux-gnu-library/3.6/RcppEigen/include 
 
 ifeq ($(HPC), "TRUE")
 NVCC        		= /share/apps/cuda/cuda-10.1/bin/nvcc
