@@ -39,16 +39,16 @@ public:
 
   // Return class instance
   template <class M, class S>
-  void init(const M, const S){};
+  void init(const M, const S){}
   template <class M, class S, class N>
-  void init(const M, const S, const N){};
-  static StatisticalDistribution *getInstance() { return new StatisticalDistribution(); };
+  void init(const M, const S, const N){}
+  static StatisticalDistribution *getInstance() { return new StatisticalDistribution(); }
 
   // Distribution functions
   // Probability Density Function
-  virtual double pdf(const double &x) const { return 0.0f; };
-  virtual double pdf(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const { return 0.0f; };
-  virtual double getNorm() const { return 0.0f; };
+  virtual double pdf(const double &x) const { return 0.0f; }
+  virtual double pdf(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const { return 0.0f; }
+  virtual double getNorm() const { return 0.0f; }
   // Cumulative Distribution Function
   double cdf(const double &x) const;
 

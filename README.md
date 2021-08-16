@@ -13,9 +13,49 @@ Multivariate Normal and Student-T distributions.
 
 ## Prerequisites
 
-Make sure you have a CUDA capable graphic processing unit and the CUDA
-SDK installed. Details on how to setup the CUDA SDK kit can be found
+You do not need a GPU to install and run CuSMC library. However, to
+enjoy the best perfomance, make sure you are running Linux and an NVidia
+GPU (Graphics Processing Unit) that supports CUDA (most if not all
+modern GPUs do) and the CUDA SDK installed. Details on how to setup the
+CUDA SDK kit can be found
 [here](https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/index.html#installing-cuda-development-tools).
+Windows and MacOS generally will not support GPU acceleration. See more
+details on MacOS support below.
+
+### Linux
+
+If there is no NVidia GPU and CUDA SDK installed, CuSMC will install
+with CPU support only. If an NVidia GPU and CUDA SDK are found during
+installation then full GPU acceleration becomes available. You will need
+the GCC compiler and toolchain installed to build the library on your
+computer. If you are on Debian based distro like Ubuntu, you can install
+the compiler with:
+
+``` sh
+sudo apt get install build-essential -y
+```
+
+### MacOS
+
+MacOS supports NVidia GPUs and CUDA up to MacOS version 10.13.6. If you
+have a version of MacOS after 10.13.6 then GPU acceleration will not be
+available. The best way to get a recent GCC compiler and toolchain
+installed on MacOS is via Homebrew:
+
+``` sh
+brew install build-essential
+```
+
+### Windows
+
+Currently, GPU acceleration is not available on Windows. Before
+attempting to install, you will need to install RTOOLS40 to get the
+MSYS2 MINGW64 environment and GCC compiler and toolchain installed and
+available in R. RTOOLS40 can be found [here]()
+
+When you have installed the GCC compiler and toolchain, next you will
+need to install the `devtools` and `Rcpp` packages from CRAN as a last
+step before installing `CuSMC`
 
 ``` r
 ## Install the following packages from CRAN
@@ -25,15 +65,15 @@ install.packages(Rcpp)
 
 ## Installation
 
-You can install CuSMC from [CRAN](https://CRAN.R-project.org) with:
+You can install CuSMC from this repository with:
 
 ``` r
-# install.packages("CuSMC")
+install_github("tkamucheka/cusmc")
+library(CuSMC)
 ```
 
-## Example
+## Examples
 
 ``` r
-# library(CuSMC)
 ## basic example code
 ```

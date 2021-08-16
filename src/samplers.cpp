@@ -4,7 +4,7 @@
 #include <samplers.hpp>
 
 // Metropolis-Hastings Sampler
-void Sampler::metropolis_hastings(unsigned *a_t, Eigen::VectorXd *w_t, int N, unsigned t, int B)
+void Sampler::metropolis_hastings(unsigned *a_t, Eigen::VectorXd *w_t, size_t N, int t, size_t B)
 {
   // Generator
   std::random_device randomDevice{};
@@ -18,11 +18,11 @@ void Sampler::metropolis_hastings(unsigned *a_t, Eigen::VectorXd *w_t, int N, un
   int j, k;
 
 #pragma omp parallel for
-  for (unsigned i = 0; i < N; ++i)
+  for (size_t i = 0; i < N; ++i)
   {
     k = i;
 
-    for (unsigned n = 0; n < B; ++n)
+    for (size_t n = 0; n < B; ++n)
     {
       u = U_u(generator);
       j = U_j(generator);
