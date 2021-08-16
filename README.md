@@ -32,18 +32,23 @@ computer. If you are on Debian based distro like Ubuntu, you can install
 the compiler with:
 
 ``` sh
-sudo apt get install build-essential -y
+$ sudo apt get install build-essential -y
 ```
 
 ### MacOS
 
 MacOS supports NVidia GPUs and CUDA up to MacOS version 10.13.6. If you
 have a version of MacOS after 10.13.6 then GPU acceleration will not be
-available. The best way to get a recent GCC compiler and toolchain
-installed on MacOS is via Homebrew:
+available. There are two ways to get a compiler toolchain installed on
+MacOS. Option 1, is through `xcode-select` and the other is via
+Homebrew:
 
 ``` sh
-brew install build-essential
+# Xcode
+$ xcode-select --install
+
+# Homebrew
+$ brew install gcc
 ```
 
 ### Windows
@@ -51,7 +56,8 @@ brew install build-essential
 Currently, GPU acceleration is not available on Windows. Before
 attempting to install, you will need to install RTOOLS40 to get the
 MSYS2 MINGW64 environment and GCC compiler and toolchain installed and
-available in R. RTOOLS40 can be found [here]()
+available in R. RTOOLS40 can be found
+[here](https://cran.r-project.org/bin/windows/Rtools/)
 
 When you have installed the GCC compiler and toolchain, next you will
 need to install the `devtools` and `Rcpp` packages from CRAN as a last
