@@ -41,9 +41,9 @@ CXX_STD 				= CXX14
 
 PKG_INCLUDES 		= -I ../inst/include
 
-CC_FLAGS       	= -O3 -std=c++17 -Xpreprocessor -fopenmp -fPIC \
+CPP_FLAGS       = -O3 -std=c++17 -Xpreprocessor -fopenmp -fPIC \
 									-I/usr/local/include $(R_INCLUDES) $(PKG_INCLUDES) \
-									-Wno-unknown-pragmas -Wno-everything -Wno-overloaded-virtual
+									$(ALL_CPPFLAGS)
 
 NVCC_FLAGS  		= --x cu -std=c++14 -Xcompiler "$(CUDA_XCOMPILER)" \
 									-I/usr/local/include $(CUDA_INCLUDES) $(R_INCLUDES) $(PKG_INCLUDES)
@@ -64,12 +64,12 @@ endif
 # Objects
 API_OBJECTS			= mvt_dist.rcpp.o mvn_dist.rcpp.o samplers.rcpp.o run.rcpp.o \
 									RcppExports.o
-CC_OBJECTS      = linear_algebra.o mcmc.o particle_filter.o samplers.o \
+CPP_OBJECTS     = linear_algebra.o mcmc.o particle_filter.o samplers.o \
 									utility.o
 CXX_OBJECTS 		= statistics.cc.o
 CUDA_OBJECTS		= mvn_dist.cu.o
-PKG_OBJECTS			=  
-CUSMC_OBJECTS 	= $(PKG_OBJECTS) $(API_OBJECTS) $(CC_OBJECTS) $(CXX_OBJECTS)
+# PKG_OBJECTS			=  
+CUSMC_OBJECTS 	= $(PKG_OBJECTS) $(API_OBJECTS) $(CPP_OBJECTS) $(CXX_OBJECTS)
 
 all: $(CUSMC_OBJECTS)
 
@@ -79,7 +79,7 @@ $(CUDA_OBJECTS):
 	$(NVCC) -c $(NVCC_FLAGS) -o $@ $*.cpp; 			\
 	else 																				\
 	echo "Skipping CUDA sources..";							\
-	$(CXX) -c $(CC_FLAGS) -o $@ $*.cpp; 			  \
+	$(CXX) -c $(CPP_FLAGS) -o $@ $*.cpp; 			  \
 	fi;
 
 $(CXX_OBJECTS):
@@ -87,12 +87,12 @@ $(CXX_OBJECTS):
 	echo $(NVCC) -c $(NVCC_FLAGS) -o $@ $*.cpp;		\
 	$(NVCC) -c $(NVCC_FLAGS) -o $@ $*.cpp; 				\
 	else 																					\
-	echo $(CXX) -c $(NVCC_FLAGS) -o $@ $*.cpp; 		\
-	$(CXX) -c $(CC_FLAGS) -o $@ $*.cpp; 					\
+	echo $(CXX) -c $(CPP_FLAGS) -o $@ $*.cpp; 		\
+	$(CXX) -c $(CPP_FLAGS) -o $@ $*.cpp; 					\
 	fi;
 
-$(CC_OBJECTS):
-	$(CXX) -c $(CC_FLAGS) -o $@ $*.cpp
+$(CPP_OBJECTS):
+	$(CXX) -c $(CPP_FLAGS) -o $@ $*.cpp
 
 clean:
 	rm $(OBJECTS)

@@ -14,9 +14,9 @@ Multivariate Normal and Student-T distributions.
 ## Prerequisites
 
 You do not need a GPU to install and run CuSMC library. However, to
-enjoy the best perfomance, make sure you are running Linux and an NVidia
+enjoy the best perfomance, make sure you are running Linux and an Nvidia
 GPU (Graphics Processing Unit) that supports CUDA (most if not all
-modern GPUs do) and the CUDA SDK installed. Details on how to setup the
+modern GPUs do) and the CUDA SDK installed. Details on how to set up the
 CUDA SDK kit can be found
 [here](https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/index.html#installing-cuda-development-tools).
 Windows and MacOS generally will not support GPU acceleration. See more
@@ -27,7 +27,7 @@ details on MacOS support below.
 If there is no NVidia GPU and CUDA SDK installed, CuSMC will install
 with CPU support only. If an NVidia GPU and CUDA SDK are found during
 installation then full GPU acceleration becomes available. You will need
-the GCC compiler and toolchain installed to build the library on your
+the GCC compiler and tool chain installed to build the library on your
 computer. If you are on Debian based distro like Ubuntu, you can install
 the compiler with:
 
@@ -56,7 +56,7 @@ $ brew install gcc
 Currently, GPU acceleration is not available on Windows. Before
 attempting to install, you will need to install RTOOLS40 to get the
 MSYS2 MINGW64 environment and GCC compiler and toolchain installed and
-available in R. RTOOLS40 can be found
+available in R. RTOOLS40 can be foundR
 [here](https://cran.r-project.org/bin/windows/Rtools/)
 
 When you have installed the GCC compiler and toolchain, next you will
@@ -74,7 +74,7 @@ install.packages(Rcpp)
 You can install CuSMC from this repository with:
 
 ``` r
-install_github("tkamucheka/cusmc")
+devtools::install_github("tkamucheka/cusmc")
 library(CuSMC)
 ```
 
