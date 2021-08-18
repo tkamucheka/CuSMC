@@ -46,7 +46,8 @@ CPP_FLAGS       = -O3 -std=c++17 -Xpreprocessor -fopenmp -fPIC \
 									$(ALL_CPPFLAGS)
 
 NVCC_FLAGS  		= --x cu -std=c++14 -Xcompiler "$(CUDA_XCOMPILER)" \
-									-I/usr/local/include $(CUDA_INCLUDES) $(R_INCLUDES) $(PKG_INCLUDES)
+									-I/usr/local/include $(CUDA_INCLUDES) $(R_INCLUDES) $(PKG_INCLUDES) \
+									$(ALL_CPPFLAGS)
 									
 NVCC_LD_FLAGS		= $(CUDA_LIB) $(OPENMP_LIBS)
 
