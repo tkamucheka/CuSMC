@@ -52,8 +52,9 @@ NVCC_FLAGS  		= --x cu -std=c++14 -Xcompiler "$(CUDA_XCOMPILER)" \
 NVCC_LD_FLAGS		= $(CUDA_LIB) $(OPENMP_LIBS)
 
 PKG_CPPFLAGS 		= $(CUDA_INCLUDES) $(PKG_INCLUDES) $(OPENMP_CXXFLAGS) \
-									-DNDEBUG -Wformat -Werror=format-security -Wdate-time \
-									-D_FORTIFY_SOURCE=2 -Wno-ignored-attributes \
+									-DNDEBUG -D_FORTIFY_SOURCE=2 \
+									-Wformat \
+									-Wdate-time -Wno-ignored-attributes \
 									-Wno-unknown-pragmas -Wno-everything -Wno-overloaded-virtual 
 
 ifeq ($NVCC_TEST,1)
