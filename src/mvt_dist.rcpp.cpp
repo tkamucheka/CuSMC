@@ -30,7 +30,21 @@ Eigen::VectorXd MVT(Eigen::VectorXd mu, Eigen::MatrixXd sigma, float nu)
   unsigned N = mu.rows();
   Eigen::VectorXd draws = Eigen::VectorXd::Zero(N);
   MultiVariateTStudentDistribution MVT(mu, sigma, nu);
-  MVT.sample(draws, 200);
+  
+  // Find the eigen vectors of the covariance matrix
+  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>
+      eigen_solver(sigma);
+  Eigen::MatrixXd eigenvectors = eigen_solver.eigenvectors().real();
+
+  // Find the eigenvalues of the covariance matrix
+  Eigen::MatrixXd eigenvalues = eigen_solver.eigenvalues().real().asDiagonal();
+
+  // Find the transformation matrix
+  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(eigenvalues);
+  Eigen::MatrixXd sqrt_eigenvalues = es.operatorSqrt();
+  Eigen::MatrixXd Q = eigenvectors * sqrt_eigenvalues;
+
+  MVT.sample(draws, Q, 200);
   return draws;
 }
 

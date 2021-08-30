@@ -297,62 +297,62 @@ void MCMC(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
   }
 }
 
-void MCMC_step(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
-               Eigen::VectorXd *y_t, Eigen::MatrixXd &E, Eigen::MatrixXd &F,
-               const dim_t N, const dim_t d, const dim_t timeSteps,
-               std::string resampler_opt, std::string distribution_opt, const float df)
-{
-  // Initialize Resamplers and Distributions
-  // Resamplers;
-  Resamplers["metropolis"] = [](unsigned *a_t, Eigen::VectorXd *w_t, int N, unsigned t, int B = 10)
-  {
-    Sampler::metropolis_hastings(a_t, w_t, N, t, B);
-  };
+// void MCMC_step(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
+//                Eigen::VectorXd *y_t, Eigen::MatrixXd &F, Eigen::MatrixXd &E,
+//                const dim_t N, const dim_t d, const dim_t timeSteps,
+//                std::string resampler_opt, std::string distribution_opt, const float df)
+// {
+//   // Initialize Resamplers and Distributions
+//   // Resamplers;
+//   Resamplers["metropolis"] = [](unsigned *a_t, Eigen::VectorXd *w_t, int N, unsigned t, int B = 10)
+//   {
+//     Sampler::metropolis_hastings(a_t, w_t, N, t, B);
+//   };
 
-  // Distributions
-  Distributions["normal"] =
-      [](distParams_t params)
-  { return StandardNormalDistribution::getInstance(params); };
-  Distributions["mvn"] =
-      [](distParams_t params)
-  { return MultiVariateNormalDistribution::getInstance(params); };
-  Distributions["mvt"] =
-      [](distParams_t params)
-  { return MultiVariateTStudentDistribution::getInstance(params); };
+//   // Distributions
+//   Distributions["normal"] =
+//       [](distParams_t params)
+//   { return StandardNormalDistribution::getInstance(params); };
+//   Distributions["mvn"] =
+//       [](distParams_t params)
+//   { return MultiVariateNormalDistribution::getInstance(params); };
+//   Distributions["mvt"] =
+//       [](distParams_t params)
+//   { return MultiVariateTStudentDistribution::getInstance(params); };
 
-  // Assert availability of resampler and distribution
-  // assert(Resamplers.find(resampler_opt) != Resamplers.end());
-  // assert(Distributions.find(distribution_opt) != Distributions.end());
+//   // Assert availability of resampler and distribution
+//   // assert(Resamplers.find(resampler_opt) != Resamplers.end());
+//   // assert(Distributions.find(distribution_opt) != Distributions.end());
 
-  resampler_f resampler = Resamplers[resampler_opt];
+//   resampler_f resampler = Resamplers[resampler_opt];
 
-  // Solve Covariant Matrix for determinant & inverse
-  //double E_det = E.determinant();
-  Eigen::MatrixXd E_inv = E.inverse();
-  Eigen::MatrixXd Q(d, d);
-  eigenSolver(Q, E);
+//   // Solve Covariant Matrix for determinant & inverse
+//   //double E_det = E.determinant();
+//   Eigen::MatrixXd E_inv = E.inverse();
+//   Eigen::MatrixXd Q(d, d);
+//   eigenSolver(Q, E);
 
-  // Get norm from distribution
-  distParams_t params;
-  params.mu = Eigen::VectorXd::Zero(d);
-  params.sigma = E;
-  params.nu = df;
+//   // Get norm from distribution
+//   distParams_t params;
+//   params.mu = Eigen::VectorXd::Zero(d);
+//   params.sigma = E;
+//   params.nu = df;
 
-  StatisticalDistribution *dist = Distributions[distribution_opt](params);
-  double norm = dist->getNorm();
+//   StatisticalDistribution *dist = Distributions[distribution_opt](params);
+//   double norm = dist->getNorm();
 
-  int B = 10;
-  for (unsigned t = 1; t < timeSteps; ++t)
-  {
-    // Calculate ancestors with Metropolis
-    resampler(a_t, w_t, N, t, B);
+//   int B = 10;
+//   for (unsigned t = 1; t < timeSteps; ++t)
+//   {
+//     // Calculate ancestors with Metropolis
+//     resampler(a_t, w_t, N, t, B);
 
-    // Propagate particles
-    propagate_K(distribution_opt, post_x_t, a_t, Q, N, d, t, df);
+//     // Propagate particles
+//     propagate_K(distribution_opt, post_x_t, a_t, Q, N, d, t, df);
 
-    // Resample weights
-    reweight_G(distribution_opt, w_t, y_t, post_x_t, norm, E_inv, E, F, N, d, t, df);
-  }
-}
+//     // Resample weights
+//     reweight_G(distribution_opt, w_t, y_t, post_x_t, norm, F, E, E_inv, N, d, t, df);
+//   }
+// }
 
 #endif

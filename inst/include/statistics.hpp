@@ -27,6 +27,7 @@ struct distParams_t
   unsigned *a_t;
   Eigen::VectorXd mu;
   Eigen::MatrixXd sigma;
+  Eigen::MatrixXd sigma_inv;
   float nu = 0.0f;
   Eigen::MatrixXd Q;
 };
@@ -133,7 +134,7 @@ public:
   };
 
   // Distribution functions
-  Eigen::VectorXd pdf(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const;
+  // Eigen::VectorXd pdf(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const;
   double pdf(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const;
   double pdf(const Eigen::VectorXd &y,
              const Eigen::VectorXd &x,
@@ -185,6 +186,7 @@ public:
 
   // Distribution functions
   double pdf(const Eigen::VectorXd &x) const;
+  double pdf(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const;
   double pdf(const Eigen::VectorXd &y,
              const Eigen::VectorXd &x,
              const Eigen::MatrixXd &s) const;
@@ -201,6 +203,7 @@ public:
 
   // Random draw function
   void sample(Eigen::VectorXd &dist_draws,
+              const Eigen::MatrixXd Q,
               const unsigned int n_iterations) const;
 
   // void sample(Eigen::VectorXd &dist_draws,

@@ -35,10 +35,10 @@ void propagate_K(std::string distribution_opt, Eigen::VectorXd **post_x_t, unsig
                  const dim_t t, const float df);
 void reweight_G(std::string distribution_opt, Eigen::VectorXd *w_t, const Eigen::VectorXd *y_t,
                 Eigen::VectorXd **post_x_t, const double norm,
-                const Eigen::MatrixXd &E_inv, const Eigen::MatrixXd E, const Eigen::MatrixXd F,
+                const Eigen::MatrixXd F, const Eigen::MatrixXd G, const Eigen::MatrixXd &G_inv,
                 const dim_t N, const dim_t d, const dim_t t, const float df);
 void MCMC(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
-          Eigen::VectorXd *y_t, Eigen::MatrixXd &F, Eigen::MatrixXd &I,
+          Eigen::VectorXd *y_t, Eigen::MatrixXd &F, Eigen::MatrixXd &G,
           const dim_t N, const dim_t d, const dim_t timeSteps,
           std::string resampler_opt, std::string distribution_opt, const float df);
 
