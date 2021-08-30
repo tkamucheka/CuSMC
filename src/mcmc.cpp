@@ -64,20 +64,16 @@ void initialize(std::string distribution_opt, Eigen::VectorXd **x_t, Eigen::Vect
   params.sigma = C0;
   params.nu = df;
 
+  // Solve Covariant Matrix for determinant & inverse
+  Eigen::MatrixXd Q(d, d);
+  eigenSolver(Q, C0);
+
   StatisticalDistribution *dist = Distributions[distribution_opt](params);
 
   // Initialize thetas
-#ifndef __GPU
-
 #pragma omp parallel for
   for (unsigned i = 0; i < N; ++i)
-    dist->sample(x_t[0][i], 200);
-
-#else
-
-  dist->sample(x_t[0]);
-
-#endif
+    dist->sample(x_t[0][i], Q, 200);
 
   // Initialize omega
   w_t[0].fill(1 / double(N));
@@ -88,6 +84,7 @@ void initialize(std::string distribution_opt, Eigen::VectorXd **x_t, Eigen::Vect
 void propagate_K(std::string distribution_opt,
                  Eigen::VectorXd **post_x_t,
                  unsigned *a_t,
+                 const Eigen::MatrixXd G,
                  const Eigen::MatrixXd Q,
                  const dim_t N, const dim_t d,
                  const dim_t t, const float df)
@@ -103,21 +100,29 @@ void propagate_K(std::string distribution_opt,
       [](distParams_t params)
   { return MultiVariateTStudentDistribution::getInstance(params); };
 
-  // Find the eigen vectors of the covariance matrix
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>
-      eigen_solver(Q);
-  Eigen::MatrixXd eigenvectors = eigen_solver.eigenvectors().real();
+  // BUG:
+  // Q is already the result of eigenSolver
+  //
+  // // Find the eigen vectors of the covariance matrix
+  // Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>
+  //     eigen_solver(Q);
+  // Eigen::MatrixXd eigenvectors = eigen_solver.eigenvectors().real();
 
-  // Find the eigenvalues of the covariance matrix
-  Eigen::MatrixXd eigenvalues = eigen_solver.eigenvalues().real().asDiagonal();
+  // // Find the eigenvalues of the covariance matrix
+  // Eigen::MatrixXd eigenvalues = eigen_solver.eigenvalues().real().asDiagonal();
 
-  // Find the transformation matrix
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(eigenvalues);
-  Eigen::MatrixXd sqrt_eigenvalues = es.operatorSqrt();
-  Eigen::MatrixXd _Q = eigenvectors * sqrt_eigenvalues;
+  // // Find the transformation matrix
+  // Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(eigenvalues);
+  // Eigen::MatrixXd sqrt_eigenvalues = es.operatorSqrt();
+  // Eigen::MatrixXd _Q = eigenvectors * sqrt_eigenvalues;
 
 // Initialize distribution with shuffled(theta) x_t
 #ifndef __GPU
+
+  distParams_t params;
+  params.sigma = G;
+  params.nu = df;
+
 #pragma omp parallel for
   for (unsigned i = 0; i < N; ++i)
   {
@@ -126,7 +131,7 @@ void propagate_K(std::string distribution_opt,
     // user input. The underlying function call may look like this:
     //
     // MultiVariateNormalDistribution mvn(post_x_t[t - 1][a_t[t * N + i]],
-    //                                    Eigen::MatrixXd::Identity(d, d));
+    //                                    G, 200);
     //
     // NOTE: In the future it may be worthwhile to pass the arguments in a
     // `distOptions` object because different distribution may functin with
@@ -134,15 +139,12 @@ void propagate_K(std::string distribution_opt,
 
     // Shuffle (thetas) x_t in the indices
     // and initialize new distribution
-    distParams_t params;
     params.mu = post_x_t[t - 1][a_t[t * N + i]];
-    params.sigma = Eigen::MatrixXd::Identity(d, d);
-    params.nu = df;
 
     StatisticalDistribution *dist = Distributions[distribution_opt](params);
 
     // Sample new (thetas) x_t
-    dist->sample(post_x_t[t][i], _Q, 200);
+    dist->sample(post_x_t[t][i], Q, 200);
 
     delete dist;
   }
@@ -151,16 +153,16 @@ void propagate_K(std::string distribution_opt,
   distParams_t params;
   params.post_x_t = post_x_t;
   params.a_t = a_t;
-  params.sigma = Eigen::MatrixXd::Identity(d, d);
+  params.sigma = G;
   params.nu = df;
-  params.Q = _Q;
+  params.Q = Q;
   params.N = N;
   params.d = d;
   params.t = t;
 
   StatisticalDistribution *dist = Distributions[distribution_opt](params);
 
-  dist->sample(post_x_t, a_t, _Q, N, d, t);
+  dist->sample(post_x_t, a_t, Q, N, d, t);
 
   delete dist;
 
@@ -184,6 +186,12 @@ void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen
   { return MultiVariateTStudentDistribution::getInstance(params); };
 
 #ifndef __GPU
+
+  distParams_t params;
+  params.sigma = G;
+  params.sigma_inv = G_inv;
+  params.nu = df;
+
 #pragma omp parallel for
   for (unsigned i = 0; i < N; ++i)
   {
@@ -199,10 +207,7 @@ void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen
 
     // Initialize MVN distribution
     // mean  = x[t], covariance matrix sigma = E
-    distParams_t params;
     params.mu = post_x_t[t][i];
-    params.sigma = G;
-    params.nu = df;
 
     StatisticalDistribution *dist = Distributions[distributions_opt](params);
 
@@ -217,8 +222,9 @@ void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen
   distParams_t params;
   params.post_x_t = post_x_t;
   params.a_t = a_t;
-  params.sigma = E;
-  params.nu = df;
+  params.sigma = G;
+  params.sigma_inv = G_inv;
+  params.df = df;
   params.Q = Q;
   params.N = N;
   params.d = d;
@@ -284,7 +290,7 @@ void MCMC(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
     resampler(a_t, w_t, N, t, B);
 
     // Propagate particles
-    propagate_K(distribution_opt, post_x_t, a_t, Q, N, d, t, df);
+    propagate_K(distribution_opt, post_x_t, a_t, G, Q, N, d, t, df);
 
     // Resample weights
     reweight_G(distribution_opt, w_t, y_t, post_x_t, norm, F, G, G_inv, N, d, t, df);
