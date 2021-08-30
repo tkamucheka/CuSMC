@@ -177,21 +177,10 @@ double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y, const Eigen
   double norm = 1 / (std::pow(sqrt2pi, n) *
                      std::pow(sigma.determinant(), 0.5));
 
-#ifndef __GPU
-
   Eigen::VectorXd y_Fmu = y - (F * mu);
   double quadform = y_Fmu.transpose() * sigma.inverse() * y_Fmu;
 
   return norm * exp(-0.5 * quadform);
-
-#else
-  double w;
-  mvn_pdf_kernel_wrapper(&w, y, mu, sigma.inverse(), F, norm, mu.rows());
-  // DEBUG:
-  // Rcpp::Rcout << "PDF: " << w << std::endl;
-
-  return w;
-#endif
 };
 
 double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y,
@@ -226,9 +215,10 @@ Eigen::VectorXd MultiVariateNormalDistribution::mean() const { return mu; };
 Eigen::VectorXd MultiVariateNormalDistribution::stdev() const { return sigma; };
 
 // Random draw function
-void MultiVariateNormalDistribution::sample(Eigen::VectorXd &dist_draws,
-                                            const Eigen::MatrixXd Q,
-                                            const unsigned int n_iterations) const
+void MultiVariateNormalDistribution::sample(
+    Eigen::VectorXd &dist_draws,
+    const Eigen::MatrixXd Q,
+    const unsigned int n_iterations) const
 {
   // Generator
   std::random_device randomDevice{};

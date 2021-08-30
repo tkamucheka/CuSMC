@@ -4,7 +4,6 @@
 #define __STATISTICS_CPP
 
 #include "../inst/include/statistics.hpp"
-
 #include "../inst/include/distributions/mvn_dist.hpp"
 
 // Base class constructor/destructor
@@ -190,8 +189,11 @@ double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y, const Eigen
 #endif
 };
 
+double MultiVariateNormalDistribution::pdf() {}
+
 //Calculate constant norm
-double MultiVariateNormalDistribution::getNorm() const
+double
+MultiVariateNormalDistribution::getNorm() const
 {
   int n = this->mu.rows();
 
@@ -210,103 +212,23 @@ Eigen::VectorXd MultiVariateNormalDistribution::mean() const { return mu; };
 Eigen::VectorXd MultiVariateNormalDistribution::stdev() const { return sigma; };
 
 // Random draw function
-void MultiVariateNormalDistribution::sample(Eigen::VectorXd **post_x_t, unsigned *a_t,
-                                            const Eigen::MatrixXd Q, const dim_t N, const dim_t d,
-                                            const dim_t t)
+void MultiVariateNormalDistribution::sample(
+    Eigen::VectorXd &dist_draws,
+    const Eigen::MatrixXd Q,
+    const unsigned int n_iterations)
 {
-  cudaError_t cuda_ret;
-  const size_t VECTOR_SZ = sizeof(double) * N * d;
-  const size_t COVMAT_SZ = sizeof(double) * d * d;
+  mvn_sample_kernel_wrapper_s(post_x_t, a_t,
+                              Q, N, d, t);
+};
 
-  double *dev_pre_x_t;
-  double *dev_post_x_t;
-  double *dev_Q;
-  double *dev_norm_rand;
-  curandState *devStates;
-
-  // shuffle pre_x_t
-  Eigen::VectorXd *host_pre_x_t = new Eigen::VectorXd[N];
-  for (unsigned i = 0; i < N; ++i)
-  {
-    host_pre_x_t[i] = Eigen::VectorXd(d);
-    host_pre_x_t[i] = post_x_t[t - 1][a_t[t * N + i]];
-  }
-
-  double *host_x_t = (double *)malloc(sizeof(double) * N * d);
-  for (int y = 0; y < N; ++y)
-    for (unsigned x = 0; x < d; ++x)
-      host_x_t[y * d + x] = host_pre_x_t[y][x];
-
-  /* Allocate space for prng states on device */
-  CUDA_CALL(cudaMalloc((void **)&devStates, N * d * sizeof(curandState)));
-  CUDA_CALL(cudaMalloc((void **)&dev_norm_rand, VECTOR_SZ));
-  CUDA_CALL(cudaMalloc((void **)&dev_pre_x_t, VECTOR_SZ));
-  CUDA_CALL(cudaMalloc((void **)&dev_post_x_t, VECTOR_SZ));
-  CUDA_CALL(cudaMalloc((void **)&dev_Q, COVMAT_SZ));
-  cuda_ret = cudaDeviceSynchronize();
-  if (cuda_ret != cudaSuccess)
-    FATAL("Unable to allocate memory on device");
-
-  // double *host_norm_rand;
-  double *host_Q;
-
-  // host_norm_rand = (double *)malloc(VECTOR_SZ);
-  host_Q = (double *)malloc(COVMAT_SZ);
-
-  for (size_t i = 0; i < d; ++i)
-    for (size_t j = 0; j < d; ++j)
-      host_Q[i * d + j] = Q(i, j);
-
-  CUDA_CALL(cudaMemcpy(dev_pre_x_t, host_x_t, VECTOR_SZ, cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dev_Q, host_Q, COVMAT_SZ, cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpyToSymbol(dev_d, &d, sizeof(dim_t)));
-  CUDA_CALL(cudaMemcpyToSymbol(dev_N, &N, sizeof(dim_t)));
-  cuda_ret = cudaDeviceSynchronize();
-  if (cuda_ret != cudaSuccess)
-    FATAL("Unable to transfer data to device");
-
-  dim3 rand_blockDim(512);
-  int rand_gridDim = ceil(double(N * d) / double(rand_blockDim.x));
-
-  /* Setup prng states */
-  setup_kernel<<<rand_gridDim, rand_blockDim>>>(devStates);
-  cuda_ret = cudaDeviceSynchronize();
-  if (cuda_ret != cudaSuccess)
-    FATAL("Unable to launch kernel: setup_kernel");
-
-  // Generate random numbers
-  norm_rand_kernel<<<rand_gridDim, rand_blockDim>>>(dev_norm_rand, devStates);
-  cuda_ret = cudaDeviceSynchronize();
-  if (cuda_ret != cudaSuccess)
-    FATAL("Unable to launch kernel: norm_rand_kernel");
-
-  const unsigned int BLOCK_SIZE = TILE_SIZE;
-
-  dim3 blockDim(1, BLOCK_SIZE, BLOCK_SIZE);
-  dim3 gridDim(N, ceil(double(d) / double(BLOCK_SIZE)),
-               ceil(double(d) / double(BLOCK_SIZE)));
-
-  mvn_sample_kernel_xtra<<<gridDim, blockDim>>>(dev_post_x_t, dev_pre_x_t,
-                                                dev_Q, dev_norm_rand);
-  cuda_ret = cudaDeviceSynchronize();
-  if (cuda_ret != cudaSuccess)
-    FATAL("Unable to launch kernel: mvn_sample_kernel");
-
-  CUDA_CALL(
-      cudaMemcpy(host_x_t, dev_post_x_t, VECTOR_SZ, cudaMemcpyDeviceToHost));
-  cuda_ret = cudaDeviceSynchronize();
-  if (cuda_ret != cudaSuccess)
-    FATAL("Unable to transfer data to host");
-
-  for (unsigned i = 0; i < N; ++i)
-    for (unsigned j = 0; j < d; ++j)
-      post_x_t[t][i][j] = host_x_t[i * d + j];
-
-  cudaFree(devStates);
-  cudaFree(dev_pre_x_t);
-  cudaFree(dev_post_x_t);
-  cudaFree(dev_Q);
-  free(host_x_t);
+// Parallel random draw function
+void MultiVariateNormalDistribution::sample(
+    Eigen::VectorXd **post_x_t, unsigned *a_t,
+    const Eigen::MatrixXd Q, const dim_t N,
+    const dim_t d, const dim_t t)
+{
+  mvn_sample_kernel_wrapper_p(post_x_t, a_t,
+                              Q, N, d, t);
 };
 
 // Multi-Variate T Student Distribution ====================================

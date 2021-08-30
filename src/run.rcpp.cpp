@@ -50,8 +50,9 @@ struct env_t
 //' @export
 // [[Rcpp::export]]
 List run(unsigned &N, unsigned &d, unsigned &timeSteps,
-         Eigen::MatrixXd Y, Eigen::VectorXd m0, Eigen::MatrixXd C0, Eigen::MatrixXd F,
-         float df, std::string resampler, std::string distribution, unsigned p=0)
+         Eigen::MatrixXd Y, Eigen::VectorXd m0,
+         Eigen::MatrixXd C0, Eigen::MatrixXd F, Eigen::MatrixXd G,
+         float df, std::string resampler, std::string distribution, unsigned p = 0)
 {
   assert(p < N);
   // Setup Environment
@@ -63,7 +64,7 @@ List run(unsigned &N, unsigned &d, unsigned &timeSteps,
   ENV.m0 = m0; // Eigen::VectorXd::Zero(d);
   ENV.C0 = C0; // Eigen::MatrixXd::Identity(d, d);
   ENV.F = F;   //Eigen::MatrixXd::Identity(d, d);
-  ENV.G = Eigen::MatrixXd::Identity(d, d);
+  ENV.G = G;
   ENV.df = df;
 
   // // Initialize variables
@@ -90,7 +91,7 @@ List run(unsigned &N, unsigned &d, unsigned &timeSteps,
   float runtime;
   particle_filter(post_x_t, w_t, a_t, ENV.y_t, ENV.F, ENV.G, ENV.m0, ENV.C0,
                   ENV.d, N, ENV.timeSteps, runtime, resampler, distribution, ENV.df);
-  writeOutput(ENV.y_t, w_t, post_x_t, N, ENV.d, ENV.timeSteps,p);
+  writeOutput(ENV.y_t, w_t, post_x_t, N, ENV.d, ENV.timeSteps, p);
 
   // Build return object
   List ret;

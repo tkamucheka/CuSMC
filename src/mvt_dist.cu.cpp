@@ -1,138 +1,24 @@
+#ifdef __GPU
+
 #ifndef __MVT_CPP
 #define __MVT_CPP
 
 #include <distributions/mvt_dist.hpp>
 
-// namespace Kernel
-// {
+#define TILE_SIZE 16
 
-/*
- * Computes \sum_{i}^{N} x_i y_i for x, y \in \mathbb{R}^{N}.
- */
-__device__ double devVecDot(const size_t N, const double *x, const double *y)
-{
-  assert(N > 0);
-  assert(x != NULL);
-  assert(y != NULL);
-  // x == y allowed
+__constant__ dim_t dev_d;
+__constant__ dim_t dev_N;
+__constant__ double dev_norm;
+__constant__ float dev_df;
+// __constant__ double F_coeffs;
 
-  double sum = 0;
-  for (size_t i = 0; i < N; ++i)
-    sum += x[i] * y[i];
-
-  return sum;
-}
-
-/*
- * Computes z_{i} \gets x_{i} - y_{i} for x, y \in \mathbb{R}^N.
- */
-__device__ void devVecMinus(const size_t N, double *z, const double *x,
-                            const double *y)
-{
-  assert(N > 0);
-  assert(x != NULL);
-  assert(y != NULL);
-  // x == y allowed
-
-  for (size_t i = 0; i < N; ++i)
-  {
-    z[i] = x[i] - y[i];
-  }
-}
-
-/*
- * Solves the lower triangular system L^T x = b for x, b \in \mathbb{R}^{N},
- * L \in \mathbb{R}^{N \times N} and L_{i, j} = 0 for j > i.
- */
-__device__ void devSolveLowerTri(const size_t N, const double *L, double *x,
-                                 const double *b)
-{
-  assert(N > 0);
-  assert(L != NULL);
-  assert(x != NULL);
-  assert(b != NULL);
-  // x == b allowed
-
-  for (size_t i = 0; i < N; ++i)
-  {
-    double sum = 0.0;
-    if (i > 0)
-    {
-      for (size_t j = 0; j <= i - 1; ++j)
-      {
-        sum += L[i * N + j] * x[j];
-      }
-    }
-
-    x[i] = (b[i] - sum) / L[i * N + i];
-  }
-}
-
-/*
- * Solves the upper triangular system L^T x = b for x, b \in \mathbb{R}^{N},
- * L \in \mathbb{R}^{N \times N} and L_{i, j} = 0 for j > i.
- */
-__device__ void devSolveLowerTriT(const size_t N, const double *L, double *x,
-                                  const double *b)
-{
-  assert(N > 0);
-  assert(L != NULL);
-  assert(x != NULL);
-  assert(b != NULL);
-  // x == b allowed
-
-  // treat L as an upper triangular matrix U
-  for (size_t i = 0; i < N; i++)
-  {
-    size_t ip = N - 1 - i;
-    double sum = 0;
-    for (size_t j = ip + 1; j < N; ++j)
-    {
-      sum += L[j * N + ip] * x[j];
-    }
-
-    x[ip] = (b[ip] - sum) / L[ip * N + ip];
-  }
-}
-
-__device__ void matrix_mult(double *C, double *A, double *B, int r1, int c1,
-                            int c2)
-{
-  for (int m = 0; m < r1; ++m)
-    for (int k = 0; k < c2; ++k)
-    {
-      double dotP = 0;
-      for (int n = 0; n < c1; ++n)
-        dotP += A[m * c1 + n] * B[n * c2 + k];
-
-      C[m * c2 + k] = dotP;
-    }
-}
-
-__device__ void vectorAdd(double *C, double *A, double *B, int d)
-{
-  for (int i = 0; i < d; ++i)
-    C[i] = A[i] + B[i];
-}
-
-__device__ void cholesky(double *L, double *A, int n)
-{
-  assert(L != NULL);
-
-  for (int i = 0; i < n; i++)
-    for (int j = 0; j < (i + 1); j++)
-    {
-      double s = 0;
-      for (int k = 0; k < j; k++)
-        s += L[i * n + k] * L[j * n + k];
-      L[i * n + j] = (i == j) ? sqrt(A[i * n + i] - s)
-                              : (1.0 / L[j * n + j] * (A[i * n + j] - s));
-    }
-}
 /*
   *chi-square distribution
 */
-__device__ double curand_gamma(curandState_t *localState, const double a, const double b)
+
+__device__ double curand_gamma(curandState_t *localState,
+                               const double a, const double b)
 {
   /* assume a > 0 */
 
@@ -168,17 +54,12 @@ __device__ double curand_gamma(curandState_t *localState, const double a, const 
   }
 }
 
-__device__ double curand_chi_square(curandState_t *localState, const float nu)
+__device__ double curand_chi_square(curandState_t *localState,
+                                    const float nu)
 {
   double chisq = 2 * curand_gamma(localState, nu / 2, 1.0);
   return chisq;
 }
-
-__constant__ dim_t dev_d;
-__constant__ dim_t dev_N;
-__constant__ double dev_norm;
-__constant__ float dev_df;
-// __constant__ double F_coeffs;
 
 // __device__ void generate_uniform(double *result, int n,
 //                                  curandState *randState) {
@@ -196,48 +77,8 @@ __constant__ float dev_df;
 //   }
 // }
 
-__device__ void mvnSample(double *dist_draws, double *x, double *mu, double *Q,
-                          curandStateXORWOW_t *randState)
-{
-  double2 rand_x;
-  int n_iterations = 1;
-  double *Qx = new double[dev_d * dev_d];
-  // double *x = new double[dev_d];
-  double *sum = new double[dev_d];
-
-  // Generator
-  // Normal Distribution N(0, 1)
-  sum[0] = 0;
-  sum[1] = 0;
-  // for (unsigned i = 0; i < n_iterations; ++i) {
-  // rand_x = curand_normal2_double(randState);
-  // x[0] = rand_x.x;
-  // x[1] = rand_x.y;
-
-  //   for (unsigned j = 0; j < d; ++j) {
-  //     x[j] = 0.5 * (x[j] + 1);
-  //     sum[j] = sum[j] + x[j];
-  //   }
-  // }
-
-  // for (unsigned i = 0; i < d; ++i) {
-  //   sum[i] = sum[i] - (static_cast<double>(n_iterations) / 2) * 1;
-  //   x[i] = sum[i] / (sqrt(static_cast<double>(n_iterations) / 12));
-  // }
-
-  matrix_mult(Qx, Q, x, dev_d, dev_d, 1);
-  vectorAdd(dist_draws, Qx, mu, dev_d);
-
-  free(Qx);
-  // free(x);
-  free(sum);
-
-  // cholesky(L, sigma, d);
-  // matrix_mult(Q, x, L, d, 1, d);
-  // vectorAdd(dist_draws, Q, mu, d);
-}
-
-__global__ void setup_kernel(curandState_t *state)
+// MVT
+__global__ void mvt_sample_setup_kernel(curandState_t *state)
 {
   // int x = threadIdx.x;
   // int y = blockIdx.x * blockDim.y + threadIdx.y;
@@ -248,7 +89,7 @@ __global__ void setup_kernel(curandState_t *state)
     curand_init(1234LLU, idx, 0, &state[idx]);
 }
 
-__global__ void tdist_rand_kernel(double *rand_x, double *rand_chi, curandState_t *randState)
+__global__ void mvt_sample_tdist_rand_kernel(double *rand_x, double *rand_chi, curandState_t *randState)
 {
   // int x = threadIdx.x;
   // int y = blockIdx.x * blockDim.y + threadIdx.y;
@@ -260,8 +101,6 @@ __global__ void tdist_rand_kernel(double *rand_x, double *rand_chi, curandState_
   rand_chi[idx] = curand_chi_square(randState + idx, dev_df);
   rand_chi[idx] = std::sqrt(dev_df / rand_chi[idx]);
 }
-
-#define TILE_SIZE 16
 
 __global__ void mvt_sample_kernel(double *post_x_t, double *pre_x_t,
                                   double *Q, double *rand_norm_vars, double *rand_tdist_vars)
@@ -306,8 +145,9 @@ __global__ void mvt_sample_kernel(double *post_x_t, double *pre_x_t,
     TILE_ROW = t * TILE_SIZE;
 
     // Read values from matrix A
-    _Q[y][x] =
-        (rowIdx < m && x + TILE_ROW < k) ? Q[(rowIdx * k) + x + TILE_ROW] : 0.0;
+    _Q[y][x] = (rowIdx < m && x + TILE_ROW < k)
+                   ? Q[(rowIdx * k) + x + TILE_ROW]
+                   : 0.0;
 
     // Read values from matrix B
     _x[y][x] = (colIdx < n && y + TILE_ROW < k)
@@ -330,6 +170,7 @@ __global__ void mvt_sample_kernel(double *post_x_t, double *pre_x_t,
     post_x_t[el] = rand_tdist_vars[el] * dotProduct + pre_x_t[el];
 }
 
+// MVTPDF
 __global__ void mvtpdf_kernel_y_minus_Fmu(double *dev_alpha_t, double *dev_y_t, //same as mvn
                                           double *dev_x_t, double *dev_F)
 {
@@ -422,6 +263,7 @@ __global__ void mvtpdf_kernel_Einv_alpha(double *dev_Ealpha_t, //same as mvn
   int rowIdx = blockIdx.z * blockDim.z + threadIdx.z;
   int colIdx = blockIdx.y * blockDim.y + threadIdx.y;
 
+  // Initialize dimensions
   m = dev_d;
   k = dev_d;
   n = 1;
@@ -468,8 +310,8 @@ __global__ void mvtpdf_kernel_Einv_alpha(double *dev_Ealpha_t, //same as mvn
     dev_Ealpha_t[el] = dotProduct;
 }
 
-__global__ void mvtpdf_kernel_xtra(double *dev_w_t, double *dev_alpha_t,
-                                   double *dev_Ealpha_t)
+__global__ void mvtpdf_kernel(double *dev_w_t, double *dev_alpha_t,
+                              double *dev_Ealpha_t)
 {
   __shared__ int matOffset;
   __shared__ int m;
@@ -490,8 +332,8 @@ __global__ void mvtpdf_kernel_xtra(double *dev_w_t, double *dev_alpha_t,
   int rowIdx = blockIdx.z * blockDim.z + threadIdx.z;
   int colIdx = blockIdx.y * blockDim.y + threadIdx.y;
 
-  m = 1;
-  k = 2;
+  m = dev_d;
+  k = dev_d;
   n = 1;
 
   // Initialize tiles to zero
@@ -531,61 +373,27 @@ __global__ void mvtpdf_kernel_xtra(double *dev_w_t, double *dev_alpha_t,
     __syncthreads();
   }
 
-  int el = blockIdx.x;
-  __syncthreads();
-
   // save dot product
   double _quadform = 1.0f + quadform / dev_df;
   double power = -0.5 * (dev_d + dev_df);
+
+  __syncthreads();
   if (rowIdx < m && colIdx < n)
-  {
-    dev_w_t[el] = dev_norm * std::pow(_quadform, power);
-  }
+    dev_w_t[blockIdx.x] = dev_norm * std::pow(_quadform, power);
 }
 
-// namespace Kernel {
-void metropolis(unsigned *a_t, Eigen::VectorXd *w_t, int N, unsigned t)
-{
-  // Generator
-  std::random_device randomDevice{};
-  std::mt19937 generator{randomDevice()};
-  // Uniform Distribution between 0 and 1
-  std::uniform_real_distribution<> U_u{0, 1};
-  // Descrete Uniform Distribution between 1 and N
-  std::uniform_int_distribution<> U_j(0, N - 1);
-
-  int B = 10;
-
-  double u;
-  int j, k;
-
-  for (unsigned i = 0; i < N; ++i)
-  {
-    k = i;
-
-    for (unsigned n = 0; n < B; ++n)
-    {
-      u = U_u(generator);
-      j = U_j(generator);
-
-      if (u <= w_t[t - 1][j] / w_t[t - 1][k])
-        k = j;
-    }
-
-    a_t[t * N + i] = k;
-  }
-}
-
-void propagate_K(Eigen::VectorXd **post_x_t, unsigned *a_t,
-                 const Eigen::MatrixXd Q, const dim_t N, const dim_t d,
-                 const dim_t t, const float df)
+// MVT kernel wrapper
+void mvt_sample_kernel_wrapper(Eigen::VectorXd **post_x_t,
+                               unsigned *a_t,
+                               const Eigen::MatrixXd Q,
+                               const dim_t N, const dim_t d,
+                               const dim_t t, const float df)
 {
   // shuffle pre_x_t
   Eigen::VectorXd *host_pre_x_t = new Eigen::VectorXd[N];
   for (unsigned i = 0; i < N; ++i)
   {
     host_pre_x_t[i] = Eigen::VectorXd(d);
-    // for (unsigned j = 0; j <)
     host_pre_x_t[i] = post_x_t[t - 1][a_t[t * N + i]];
   }
 
@@ -640,16 +448,16 @@ void propagate_K(Eigen::VectorXd **post_x_t, unsigned *a_t,
   int rand_gridDim = ceil(double(N * d) / double(rand_blockDim.x));
 
   /* Setup prng states */
-  setup_kernel<<<rand_gridDim, rand_blockDim>>>(devStates);
+  mvt_sample_setup_kernel<<<rand_gridDim, rand_blockDim>>>(devStates);
   cuda_ret = cudaDeviceSynchronize();
   if (cuda_ret != cudaSuccess)
-    FATAL("Unable to launch kernel: setup_kernel");
+    FATAL("Unable to launch kernel: mvt_sample_setup_kernel");
 
   // Generate random numbers
-  tdist_rand_kernel<<<rand_gridDim, rand_blockDim>>>(dev_norm_rand, dev_tdist_rand, devStates);
+  mvt_sample_tdist_rand_kernel<<<rand_gridDim, rand_blockDim>>>(dev_norm_rand, dev_tdist_rand, devStates);
   cuda_ret = cudaDeviceSynchronize();
   if (cuda_ret != cudaSuccess)
-    FATAL("Unable to launch kernel: tdist_rand_kernel");
+    FATAL("Unable to launch kernel: mvt_sample_tdist_rand_kernel");
 
   const unsigned int BLOCK_SIZE = TILE_SIZE;
 
@@ -686,11 +494,16 @@ void propagate_K(Eigen::VectorXd **post_x_t, unsigned *a_t,
   free(host_x_t);
 }
 
-void reweight_G(Eigen::VectorXd *w_t, const Eigen::VectorXd *y_t,
-                Eigen::VectorXd **post_x_t, const double norm,
-                const Eigen::MatrixXd &E_inv, const Eigen::MatrixXd E,
-                const Eigen::MatrixXd F, const dim_t N, const dim_t d,
-                const dim_t t, const float df)
+// MVTPDF kernel wrapper
+void mvt_pdf_kernel_wrapper(Eigen::VectorXd *w_t,
+                            const Eigen::VectorXd *y_t,
+                            Eigen::VectorXd **post_x_t,
+                            const double norm,
+                            const Eigen::MatrixXd &E_inv,
+                            const Eigen::MatrixXd E,
+                            const Eigen::MatrixXd F,
+                            const dim_t N, const dim_t d,
+                            const dim_t t, const float df)
 {
   cudaError_t cuda_ret;
   double *dev_w_t;
@@ -738,11 +551,10 @@ void reweight_G(Eigen::VectorXd *w_t, const Eigen::VectorXd *y_t,
 
   for (unsigned i = 0; i < d; ++i)
     for (unsigned j = 0; j < d; ++j)
+    {
       host_E_inv[i * d + j] = E_inv(i, j);
-
-  for (unsigned i = 0; i < d; ++i)
-    for (unsigned j = 0; j < d; ++j)
       host_F[i * d + j] = F(i, j);
+    }
 
   CUDA_CALL(cudaMemcpy(dev_y_t, host_y_t, INPUT_SZ, cudaMemcpyHostToDevice));
   CUDA_CALL(
@@ -817,5 +629,6 @@ void reweight_G(Eigen::VectorXd *w_t, const Eigen::VectorXd *y_t,
   free(host_E_inv);
 }
 
-// } // namespace Kernel
+#endif
+
 #endif

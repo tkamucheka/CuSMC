@@ -23,8 +23,8 @@ void particle_filter(Eigen::VectorXd **post_x_t,
   // 2. MCMC time marching
   Rcpp::Rcout << "Simulating... " << std::flush;
   startTime(&timer);
-  Eigen::MatrixXd E = Eigen::MatrixXd::Identity(d, d); // Hack
-  MCMC(post_x_t, w_t, a_t, y_t, E, F, N, d, timeSteps, resampler_opt, distribution_opt, df);
+  // Eigen::MatrixXd E = Eigen::MatrixXd::Identity(d, d); // Hack
+  MCMC(post_x_t, w_t, a_t, y_t, F, G, N, d, timeSteps, resampler_opt, distribution_opt, df);
   stopTime(&timer);
   runtime = elapsedTime(timer);
   Rcpp::Rcout << "Done. " << elapsedTime(timer) << " s" << std::endl;
@@ -44,7 +44,7 @@ void particle_filter_step(Eigen::VectorXd **post_x_t,
   Rcpp::Rcout << "Stepping... " << std::flush;
   startTime(&timer);
   Eigen::MatrixXd E = Eigen::MatrixXd::Identity(d, d); // Hack
-  MCMC_step(post_x_t, w_t, a_t, y_t, E, F, N, d, timeSteps, resampler_opt, distribution_opt, df);
+  MCMC_step(post_x_t, w_t, a_t, y_t, F, G, N, d, timeSteps, resampler_opt, distribution_opt, df);
   stopTime(&timer);
   runtime = elapsedTime(timer);
   Rcpp::Rcout << "Done. " << elapsedTime(timer) << " s" << std::endl;

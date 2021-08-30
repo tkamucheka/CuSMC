@@ -82,8 +82,11 @@ void initialize(std::string distribution_opt, Eigen::VectorXd **x_t, Eigen::Vect
   delete dist;
 }
 
-void propagate_K(std::string distribution_opt, Eigen::VectorXd **post_x_t, unsigned *a_t,
-                 const Eigen::MatrixXd Q, const dim_t N, const dim_t d,
+void propagate_K(std::string distribution_opt,
+                 Eigen::VectorXd **post_x_t,
+                 unsigned *a_t,
+                 const Eigen::MatrixXd Q,
+                 const dim_t N, const dim_t d,
                  const dim_t t, const float df)
 {
   // Distributions
@@ -160,7 +163,7 @@ void propagate_K(std::string distribution_opt, Eigen::VectorXd **post_x_t, unsig
 
 void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen::VectorXd *y_t,
                 Eigen::VectorXd **post_x_t, const double norm,
-                const Eigen::MatrixXd &E_inv, const Eigen::MatrixXd E, const Eigen::MatrixXd F,
+                const Eigen::MatrixXd F, const Eigen::MatrixXd G, const Eigen::MatrixXd &G_inv,
                 const dim_t N, const dim_t d, const dim_t t, const float df)
 {
   // Distributions
@@ -189,7 +192,7 @@ void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen
     // mean  = x[t], covariance matrix sigma = E
     distParams_t params;
     params.mu = post_x_t[t][i];
-    params.sigma = E;
+    params.sigma = G;
     params.nu = df;
 
     StatisticalDistribution *dist = Distributions[distributions_opt](params);
@@ -222,7 +225,7 @@ void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen
 }
 
 void MCMC(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
-          Eigen::VectorXd *y_t, Eigen::MatrixXd &E, Eigen::MatrixXd &F,
+          Eigen::VectorXd *y_t, Eigen::MatrixXd &F, Eigen::MatrixXd &G,
           const dim_t N, const dim_t d, const dim_t timeSteps,
           std::string resampler_opt, std::string distribution_opt, const float df)
 {
@@ -248,14 +251,14 @@ void MCMC(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
 
   // Solve Covariant Matrix for determinant & inverse
   //double E_det = E.determinant();
-  Eigen::MatrixXd E_inv = E.inverse();
+  Eigen::MatrixXd G_inv = G.inverse();
   Eigen::MatrixXd Q(d, d);
-  eigenSolver(Q, E);
+  eigenSolver(Q, G);
 
   // Get norm from distribution
   distParams_t params;
   params.mu = Eigen::VectorXd::Zero(d);
-  params.sigma = E;
+  params.sigma = G;
   params.nu = df;
 
   StatisticalDistribution *dist = Distributions[distribution_opt](params);
@@ -271,7 +274,7 @@ void MCMC(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
     propagate_K(distribution_opt, post_x_t, a_t, Q, N, d, t, df);
 
     // Resample weights
-    reweight_G(distribution_opt, w_t, y_t, post_x_t, norm, E_inv, E, F, N, d, t, df);
+    reweight_G(distribution_opt, w_t, y_t, post_x_t, norm, F, G, G_inv, N, d, t, df);
   }
 }
 
