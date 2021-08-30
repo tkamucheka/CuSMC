@@ -172,7 +172,7 @@ MultiVariateNormalDistribution *MultiVariateNormalDistribution::getInstance(cons
 }
 
 // Distribution functions
-Eigen::VectorXd MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const
+Eigen::VectorXd MultiVariateNormalDistribution::pdf_cu(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const
 {
   // unsigned int n = mu.rows();
   // double sqrt2pi = std::sqrt(2 * M_PI);
@@ -244,7 +244,7 @@ MultiVariateTStudentDistribution *MultiVariateTStudentDistribution::getInstance(
 }
 
 // Distribution functions
-Eigen::VectorXd MultiVariateTStudentDistribution::pdf(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const
+Eigen::VectorXd MultiVariateTStudentDistribution::pdf_cu(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const
 {
   double norm = this->getNorm();
 

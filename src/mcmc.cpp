@@ -232,7 +232,7 @@ void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen
 
   StatisticalDistribution *dist = Distributions[distribution_opt](params);
 
-  w_t[t] = dist->pdf(y_t, F);
+  w_t[t] = dist->pdf_cu(y_t, F);
 
   delete dist;
 

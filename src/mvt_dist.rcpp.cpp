@@ -58,5 +58,7 @@ Eigen::VectorXd MVT(Eigen::VectorXd mu, Eigen::MatrixXd sigma, float nu)
 double MVTPDF(Eigen::VectorXd x, Eigen::VectorXd mu, Eigen::MatrixXd sigma, float nu)
 {
   MultiVariateTStudentDistribution MVT(mu, sigma, nu);
-  return MVT.pdf(x);
+  int n = mu.rows();
+  Eigen::MatrixXd F = Eigen::MatrixXd::Identity(n, n);
+  return MVT.pdf(x,F);
 }

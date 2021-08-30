@@ -134,7 +134,7 @@ public:
   };
 
   // Distribution functions
-  // Eigen::VectorXd pdf(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const;
+  Eigen::VectorXd pdf_cu(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const;
   double pdf(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const;
   double pdf(const Eigen::VectorXd &y,
              const Eigen::VectorXd &x,
@@ -185,11 +185,12 @@ public:
   };
 
   // Distribution functions
-  double pdf(const Eigen::VectorXd &x) const;
+  // double pdf(const Eigen::VectorXd &x) const;
+  double pdf_cu(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const;
   double pdf(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const;
   double pdf(const Eigen::VectorXd &y,
              const Eigen::VectorXd &x,
-             const Eigen::MatrixXd &s) const;
+             const Eigen::MatrixXd &E) const;
   double getNorm() const;
   double cdf() const;
 
