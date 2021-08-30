@@ -169,7 +169,9 @@ MultiVariateNormalDistribution *MultiVariateNormalDistribution::getInstance(cons
 }
 
 // Distribution functions
-double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const
+double MultiVariateNormalDistribution::pdf(
+    const Eigen::VectorXd &y,
+    const Eigen::MatrixXd &F) const
 {
   unsigned int n = mu.rows();
   double sqrt2pi = std::sqrt(2 * M_PI);
@@ -177,7 +179,7 @@ double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y, const Eigen
                      std::pow(sigma.determinant(), 0.5));
 
   Eigen::VectorXd y_Fmu = y - (F * mu);
-  double quadform = y_Fmu.transpose() * sigma.inverse() * y_Fmu;
+  double quadform = y_Fmu.transpose() * sigma_inv * y_Fmu;
 
   return norm * exp(-0.5 * quadform);
 }
@@ -234,9 +236,9 @@ void MultiVariateNormalDistribution::sample(
   Eigen::VectorXd sum(n);
   sum.setZero();
 
-#pragma omp parallel for
   for (unsigned int i = 0; i < n_iterations; i++)
   {
+#pragma omp parallel for
     for (unsigned j = 0; j < n; ++j)
       x[j] = N(generator);
 
@@ -271,13 +273,18 @@ MultiVariateTStudentDistribution *MultiVariateTStudentDistribution::getInstance(
 }
 
 // Distribution functions
-double MultiVariateTStudentDistribution::pdf(const Eigen::VectorXd &x) const
+double MultiVariateTStudentDistribution::pdf(
+    const Eigen::VectorXd &y,
+    const Eigen::MatrixXd &F) const
 {
-  unsigned n = x.rows();
+  unsigned n = mu.rows();
   double pixdf = M_PI * nu;
   double norm1 = std::pow(pixdf, (-0.5 * n)) * std::pow(sigma.determinant(), -0.5);
   double norm2 = tgamma(0.5 * (nu + n)) / tgamma(0.5 * nu);
-  double quadform1 = (x - mu).transpose() * sigma.inverse() * (x - mu);
+  // Bug: Missing F matrix
+  // double quadform1 = (x - mu).transpose() * sigma.inverse() * (x - mu);
+  Eigen::VectorXd y_Fmu = y - (F * mu);
+  double quadform1 = y_Fmu.transpose() * sigma_inv * y_Fmu;
   double quadform = 1.0f + std::pow(nu, -1) * quadform1;
 
   return (norm1 * norm2) * std::pow(quadform, (-0.5 * (nu + n)));
@@ -314,8 +321,10 @@ Eigen::VectorXd MultiVariateTStudentDistribution::stdev() const { return sigma; 
 float MultiVariateTStudentDistribution::dfree() const { return nu; }
 
 // Random draw function
-void MultiVariateTStudentDistribution::sample(Eigen::VectorXd &dist_draws,
-                                              const unsigned int n_iterations) const
+void MultiVariateTStudentDistribution::sample(
+    Eigen::VectorXd &dist_draws,
+    const Eigen::MatrixXd Q,
+    const unsigned int n_iterations) const
 {
   // Generator
   std::random_device randomDevice{};
@@ -352,18 +361,21 @@ void MultiVariateTStudentDistribution::sample(Eigen::VectorXd &dist_draws,
   sum = sum - (static_cast<double>(n_iterations) / 2) * Eigen::VectorXd::Ones(n);
   x = sum / (std::sqrt(static_cast<double>(n_iterations) / 12));
 
-  // Find the eigen vectors of the covariance matrix
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>
-      eigen_solver(sigma);
-  Eigen::MatrixXd eigenvectors = eigen_solver.eigenvectors().real();
+  // BUG:
+  // Unnecessary, Q is already solution of eiegnSolver
+  //
+  // // Find the eigen vectors of the covariance matrix
+  // Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>
+  //     eigen_solver(sigma);
+  // Eigen::MatrixXd eigenvectors = eigen_solver.eigenvectors().real();
 
-  // Find the eigenvalues of the covariance matrix
-  Eigen::MatrixXd eigenvalues = eigen_solver.eigenvalues().real().asDiagonal();
+  // // Find the eigenvalues of the covariance matrix
+  // Eigen::MatrixXd eigenvalues = eigen_solver.eigenvalues().real().asDiagonal();
 
-  // Find the transformation matrix
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(eigenvalues);
-  Eigen::MatrixXd sqrt_eigenvalues = es.operatorSqrt();
-  Eigen::MatrixXd Q = eigenvectors * sqrt_eigenvalues;
+  // // Find the transformation matrix
+  // Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(eigenvalues);
+  // Eigen::MatrixXd sqrt_eigenvalues = es.operatorSqrt();
+  // Eigen::MatrixXd Q = eigenvectors * sqrt_eigenvalues;
 
   dist_draws = chi.asDiagonal() * (Q * x) + mu; //x = dx1, mu = dx1, Q = dxd, chi = dx1
 }
