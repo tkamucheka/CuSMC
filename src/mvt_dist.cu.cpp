@@ -219,7 +219,7 @@ void mvt_sample_kernel_wrapper(Eigen::VectorXd **post_x_t, unsigned *a_t,
     FATAL("Unable to launch kernel: setup_kernel");
 
   // Generate random numbers
-  tdist_rand_kernel<<<rand_gridDim, rand_blockDim>>>(dev_norm_rand, dev_tdist_rand, devStates);
+  mvt_sample_rand_kernel<<<rand_gridDim, rand_blockDim>>>(dev_norm_rand, dev_tdist_rand, devStates);
   cuda_ret = cudaDeviceSynchronize();
   if (cuda_ret != cudaSuccess)
     FATAL("Unable to launch kernel: tdist_rand_kernel");
@@ -259,8 +259,8 @@ void mvt_sample_kernel_wrapper(Eigen::VectorXd **post_x_t, unsigned *a_t,
   free(host_x_t);
 }
 
-__global__ void mvtpdf_kernel_y_minus_Fmu(double *dev_alpha_t, double *dev_y_t, //same as mvn
-                                          double *dev_x_t, double *dev_F)
+__global__ void mvt_pdf_kernel_y_minus_Fmu(double *dev_alpha_t, double *dev_y_t, //same as mvn
+                                           double *dev_x_t, double *dev_F)
 {
   __shared__ int matOffset;
   __shared__ int m;
@@ -328,9 +328,9 @@ __global__ void mvtpdf_kernel_y_minus_Fmu(double *dev_alpha_t, double *dev_y_t, 
     dev_alpha_t[matOffset + el] = dev_y_t[el] - dotProduct;
 }
 
-__global__ void mvtpdf_kernel_Einv_alpha(double *dev_Ealpha_t, //same as mvn
-                                         double *dev_alpha_t,
-                                         double *dev_E_inv)
+__global__ void mvt_pdf_kernel_Einv_alpha(double *dev_Ealpha_t, //same as mvn
+                                          double *dev_alpha_t,
+                                          double *dev_E_inv)
 {
   __shared__ int matOffset;
   __shared__ int m;
@@ -475,13 +475,14 @@ __global__ void mvt_pdf_kernel(double *dev_w_t, double *dev_alpha_t,
   }
 }
 
-void mvt_pdf_kernel_wrapper(Eigen::VectorXd *w,
+void mvt_pdf_kernel_wrapper(Eigen::VectorXd &w,
                             const Eigen::VectorXd &y,
                             const Eigen::VectorXd &mu,
                             const Eigen::MatrixXd &E_inv,
                             const Eigen::MatrixXd &F,
                             const double norm,
-                            const dim_t d,
+                            const dim_t N, const dim_t d,
+                            const dim_t t,
                             const float df)
 {
   cudaError_t cuda_ret;
@@ -561,19 +562,19 @@ void mvt_pdf_kernel_wrapper(Eigen::VectorXd *w,
   dim3 gridDim(N, ceil(double(d) / double(BLOCK_SIZE)),
                ceil(double(d) / double(BLOCK_SIZE)));
 
-  mvtpdf_kernel_y_minus_Fmu<<<gridDim, blockDim>>>(dev_alpha_t, dev_y_t,
-                                                   dev_x_t, dev_F);
+  mvt_pdf_kernel_y_minus_Fmu<<<gridDim, blockDim>>>(dev_alpha_t, dev_y_t,
+                                                    dev_x_t, dev_F);
   cuda_ret = cudaDeviceSynchronize();
   if (cuda_ret != cudaSuccess)
-    FATAL("Unable to launch kernel: mvtpdf_kernel_y_minus_Fmu");
+    FATAL("Unable to launch kernel: mvt_pdf_kernel_y_minus_Fmu");
 
-  mvtpdf_kernel_Einv_alpha<<<gridDim, blockDim>>>(dev_Ealpha_t, dev_alpha_t,
-                                                  dev_E_inv);
+  mvt_pdf_kernel_Einv_alpha<<<gridDim, blockDim>>>(dev_Ealpha_t, dev_alpha_t,
+                                                   dev_E_inv);
   cuda_ret = cudaDeviceSynchronize();
   if (cuda_ret != cudaSuccess)
-    FATAL("Unable to launch kernel: mvtpdf_kernel_Einv_alpha");
+    FATAL("Unable to launch kernel: mvt_pdf_kernel_Einv_alpha");
 
-  mvtpdf_kernel_xtra<<<gridDim, blockDim>>>(dev_w_t, dev_alpha_t, dev_Ealpha_t);
+  mvt_pdf_kernel<<<gridDim, blockDim>>>(dev_w_t, dev_alpha_t, dev_Ealpha_t);
   cuda_ret = cudaDeviceSynchronize();
   if (cuda_ret != cudaSuccess)
     FATAL("Unable to launch kernel: mvtpdf_kernel_xtra");
@@ -584,7 +585,7 @@ void mvt_pdf_kernel_wrapper(Eigen::VectorXd *w,
     FATAL("Unable to transfer data to host");
 
   for (unsigned i = 0; i < N; ++i)
-    w_t[t][i] = host_w_t[i];
+    w_t[i] = host_w_t[i];
 
   cudaDeviceReset();
 
