@@ -4,7 +4,7 @@
 \alias{run}
 \title{Run simulations}
 \usage{
-run(N, d, timeSteps, Y, m0, C0, F, df, resampler, distribution)
+run(N, d, timeSteps, Y, m0, C0, F, df, resampler, distribution, p = 0L)
 }
 \arguments{
 \item{N}{[integer]: Number of particles is solution.}

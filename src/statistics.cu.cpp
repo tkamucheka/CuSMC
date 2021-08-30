@@ -153,40 +153,38 @@ void StandardNormalDistribution::sample(const std::vector<double> &uniform_draws
 
 // Multi-Variate Normal Normal Distribution ====================================
 
-MultiVariateNormalDistribution::MultiVariateNormalDistribution(){};
+MultiVariateNormalDistribution::MultiVariateNormalDistribution(const Eigen::VectorXd &m,
+                                                               const Eigen::MatrixXd &s)
+{
+  mu = m;
+  sigma = s;
+}
 MultiVariateNormalDistribution::~MultiVariateNormalDistribution(){};
 
 // Return class instance
 MultiVariateNormalDistribution *MultiVariateNormalDistribution::getInstance(const distParams_t params)
 {
   // MultiVariateNormalDistribution MVN(mu, sigma);
-  MultiVariateNormalDistribution *MVN = new MultiVariateNormalDistribution();
-  MVN->
+  MultiVariateNormalDistribution MVN = new MultiVariateNormalDistribution(params.mu, params.sigma);
+  MVN->params = params;
+
+  return MVN;
 }
 
 // Distribution functions
-double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const
+Eigen::VectorXd MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const
 {
   unsigned int n = mu.rows();
   double sqrt2pi = std::sqrt(2 * M_PI);
   double norm = 1 / (std::pow(sqrt2pi, n) *
                      std::pow(sigma.determinant(), 0.5));
 
-#ifndef __GPU
-
-  Eigen::VectorXd y_Fmu = y - (F * mu);
-  double quadform = y_Fmu.transpose() * sigma.inverse() * y_Fmu;
-
-  return norm * exp(-0.5 * quadform);
-
-#else
-  double w;
-  mvn_pdf_kernel_wrapper(&w, y, mu, sigma.inverse(), F, norm, mu.rows());
+  Eigen::VectorXd w = new Eigen::VectorXd::zeros(this->params.N);
+  mvn_pdf_kernel_wrapper(w, y, mu, sigma.inverse(), F, norm, mu.rows());
   // DEBUG:
   // Rcpp::Rcout << "PDF: " << w << std::endl;
 
   return w;
-#endif
 };
 
 double MultiVariateNormalDistribution::pdf() {}
@@ -217,18 +215,7 @@ void MultiVariateNormalDistribution::sample(
     const Eigen::MatrixXd Q,
     const unsigned int n_iterations)
 {
-  mvn_sample_kernel_wrapper_s(post_x_t, a_t,
-                              Q, N, d, t);
-};
-
-// Parallel random draw function
-void MultiVariateNormalDistribution::sample(
-    Eigen::VectorXd **post_x_t, unsigned *a_t,
-    const Eigen::MatrixXd Q, const dim_t N,
-    const dim_t d, const dim_t t)
-{
-  mvn_sample_kernel_wrapper_p(post_x_t, a_t,
-                              Q, N, d, t);
+  mvn_sample_kernel_wrapper(post_x_t, a_t, Q, N, d, t);
 };
 
 // Multi-Variate T Student Distribution ====================================
@@ -252,16 +239,16 @@ MultiVariateTStudentDistribution *MultiVariateTStudentDistribution::getInstance(
 }
 
 // Distribution functions
-double MultiVariateTStudentDistribution::pdf(const Eigen::VectorXd &x) const
+Eigen::VectorXd MultiVariateTStudentDistribution::pdf(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const
 {
-  unsigned n = x.rows();
-  double pixdf = M_PI * nu;
-  double norm1 = std::pow(pixdf, (-0.5 * n)) * std::pow(sigma.determinant(), -0.5);
-  double norm2 = tgamma(0.5 * (nu + n)) / tgamma(0.5 * nu);
-  double quadform1 = (x - mu).transpose() * sigma.inverse() * (x - mu);
-  double quadform = 1.0f + std::pow(nu, -1) * quadform1;
+  double norm = this->getNorm();
 
-  return (norm1 * norm2) * std::pow(quadform, (-0.5 * (nu + n)));
+  Eigen::VectorXd w = new Eigen::VectorXd::zeros(this->params.N);
+  mvt_pdf_kernel_wrapper(w, y, mu, sigma.inverse(), F, norm, mu.rows());
+
+  // DEBUG:
+  // Rcpp::Rcout << "PDF: " << w << std::endl;
+  return w;
 };
 
 double MultiVariateTStudentDistribution::pdf(const Eigen::VectorXd &y,
@@ -295,58 +282,12 @@ Eigen::VectorXd MultiVariateTStudentDistribution::stdev() const { return sigma; 
 float MultiVariateTStudentDistribution::dfree() const { return nu; };
 
 // Random draw function
-void MultiVariateTStudentDistribution::sample(Eigen::VectorXd &dist_draws,
-                                              const unsigned int n_iterations) const
+void MultiVariateTStudentDistribution::sample(Eigen::VectorXd **post_x_t, unsigned *a_t,
+                                            const Eigen::MatrixXd Q, const dim_t N, const dim_t d,
+                                            const dim_t t,
+                                            const float df) const
 {
-  // Generator
-  std::random_device randomDevice{};
-  std::mt19937 generator{randomDevice()};
-  // Uniform Distribution
-  std::uniform_real_distribution<double> U{0, 1};
-  //Chi-squared Distribution & Gamma Distribution
-  std::chi_squared_distribution<double> X2{nu};
-  //std::inverse_gamma_distribution<double> IG{double(nu/2), double(nu/2)};
-  //Standard Normal Distribution
-  std::normal_distribution<double> N{0, 1};
-
-  unsigned n = mu.rows();
-
-  // Generate x from the N(0, I) distribution
-  Eigen::VectorXd x(n);
-  Eigen::VectorXd sum(n);
-  Eigen::VectorXd chi(n);
-  sum.setZero();
-
-  for (unsigned int i = 0; i < n_iterations; i++)
-  {
-#pragma omp parallel for
-    for (unsigned j = 0; j < n; ++j)
-    {
-      x[j] = N(generator);
-      chi[j] = X2(generator);
-      chi[j] = std::sqrt(nu / chi[j]);
-    }
-    // x.setRandom();
-    x = 0.5 * (x + Eigen::VectorXd::Ones(n));
-    sum = sum + x;
-  }
-  sum = sum - (static_cast<double>(n_iterations) / 2) * Eigen::VectorXd::Ones(n);
-  x = sum / (std::sqrt(static_cast<double>(n_iterations) / 12));
-
-  // Find the eigen vectors of the covariance matrix
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>
-      eigen_solver(sigma);
-  Eigen::MatrixXd eigenvectors = eigen_solver.eigenvectors().real();
-
-  // Find the eigenvalues of the covariance matrix
-  Eigen::MatrixXd eigenvalues = eigen_solver.eigenvalues().real().asDiagonal();
-
-  // Find the transformation matrix
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(eigenvalues);
-  Eigen::MatrixXd sqrt_eigenvalues = es.operatorSqrt();
-  Eigen::MatrixXd Q = eigenvectors * sqrt_eigenvalues;
-
-  dist_draws = chi.asDiagonal() * (Q * x) + mu; //x = dx1, mu = dx1, Q = dxd, chi = dx1
+  mvt_sample_kernel_wrapper(post_x_t, a_t, Q, N, d, t, df);
 };
 
 #endif

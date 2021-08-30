@@ -8,10 +8,9 @@
 #define TILE_SIZE 16
 
 __constant__ dim_t dev_d;
-__constant__ dim_t dev_N;
 __constant__ double dev_norm;
 __constant__ float dev_df;
-// __constant__ double F_coeffs;
+__constant__ int dev_seed;
 
 /*
   *chi-square distribution
@@ -54,42 +53,21 @@ __device__ double curand_gamma(curandState_t *localState,
   }
 }
 
-__device__ double curand_chi_square(curandState_t *localState,
-                                    const float nu)
+__device__ double curand_chi_square(curandState_t *localState, const float nu)
 {
   double chisq = 2 * curand_gamma(localState, nu / 2, 1.0);
   return chisq;
 }
 
-// __device__ void generate_uniform(double *result, int n,
-//                                  curandState *randState) {
-//   int count = 0;
-//   while (count < n) {
-//     double myrandf = curand_uniform(randState);
-//     myrandf *= (1 - 0 + 0.999999);
-//     myrandf += 0;
-//     int myrand = (int)truncf(myrandf);
-
-//     assert(myrand <= 1);
-//     assert(myrand >= 0);
-//     result[myrand - 0]++;
-//     count++;
-//   }
-// }
-
-// MVT
 __global__ void mvt_sample_setup_kernel(curandState_t *state)
 {
-  // int x = threadIdx.x;
-  // int y = blockIdx.x * blockDim.y + threadIdx.y;
-  // int idx = y * dev_d + x;
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (idx < dev_N * dev_d)
-    curand_init(1234LLU, idx, 0, &state[idx]);
+    curand_init(dev_seed, idx, 0, &state[idx]);
 }
 
-__global__ void mvt_sample_tdist_rand_kernel(double *rand_x, double *rand_chi, curandState_t *randState)
+__global__ void mvt_sample_rand_kernel(double *rand_x, double *rand_chi, curandState_t *randState)
 {
   // int x = threadIdx.x;
   // int y = blockIdx.x * blockDim.y + threadIdx.y;
@@ -170,7 +148,117 @@ __global__ void mvt_sample_kernel(double *post_x_t, double *pre_x_t,
     post_x_t[el] = rand_tdist_vars[el] * dotProduct + pre_x_t[el];
 }
 
-// MVTPDF
+void mvt_sample_kernel_wrapper(Eigen::VectorXd **post_x_t, unsigned *a_t,
+                               const Eigen::MatrixXd Q, const dim_t N, const dim_t d,
+                               const dim_t t,
+                               const float df)
+{
+  // Init random seed
+  time_t t;
+  srand((unsigned)time(&t));
+  int seed = rand();
+
+  // shuffle pre_x_t
+  Eigen::VectorXd *host_pre_x_t = new Eigen::VectorXd[N];
+  for (unsigned i = 0; i < N; ++i)
+  {
+    host_pre_x_t[i] = Eigen::VectorXd(d);
+    host_pre_x_t[i] = post_x_t[t - 1][a_t[t * N + i]];
+  }
+
+  double *host_x_t = (double *)malloc(sizeof(double) * N * d);
+  for (int y = 0; y < N; ++y)
+    for (unsigned x = 0; x < d; ++x)
+      host_x_t[y * d + x] = host_pre_x_t[y][x];
+
+  double *host_Q = (double *)malloc(COVMAT_SZ);
+  for (size_t i = 0; i < d; ++i)
+    for (size_t j = 0; j < d; ++j)
+      host_Q[i * d + j] = Q(i, j);
+
+  cudaError_t cuda_ret;
+  const size_t VECTOR_SZ = sizeof(double) * N * d;
+  const size_t COVMAT_SZ = sizeof(double) * d * d;
+
+  double *dev_pre_x_t;
+  double *dev_post_x_t;
+  double *dev_Q;
+  double *dev_norm_rand;
+  double *dev_tdist_rand;
+  curandState *devStates;
+
+  /* Allocate space for prng states on device */
+  CUDA_CALL(cudaMalloc((void **)&devStates, N * d * sizeof(curandState)));
+  CUDA_CALL(cudaMalloc((void **)&dev_norm_rand, VECTOR_SZ));
+  CUDA_CALL(cudaMalloc((void **)&dev_tdist_rand, VECTOR_SZ));
+  CUDA_CALL(cudaMalloc((void **)&dev_pre_x_t, VECTOR_SZ));
+  CUDA_CALL(cudaMalloc((void **)&dev_post_x_t, VECTOR_SZ));
+  CUDA_CALL(cudaMalloc((void **)&dev_Q, COVMAT_SZ));
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to allocate memory on device");
+
+  CUDA_CALL(
+      cudaMemcpy(dev_pre_x_t, host_x_t, VECTOR_SZ, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dev_Q, host_Q, COVMAT_SZ, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpyToSymbol(dev_seed, &seed, sizeof(int)));
+  CUDA_CALL(cudaMemcpyToSymbol(dev_d, &d, sizeof(dim_t)));
+  CUDA_CALL(cudaMemcpyToSymbol(dev_N, &N, sizeof(dim_t)));
+  CUDA_CALL(cudaMemcpyToSymbol(dev_df, &df, sizeof(float)));
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to transfer data to device");
+
+  dim3 rand_blockDim(512);
+  int rand_gridDim = ceil(double(N * d) / double(rand_blockDim.x));
+
+  /* Setup prng states */
+  setup_kernel<<<rand_gridDim, rand_blockDim>>>(devStates);
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to launch kernel: setup_kernel");
+
+  // Generate random numbers
+  tdist_rand_kernel<<<rand_gridDim, rand_blockDim>>>(dev_norm_rand, dev_tdist_rand, devStates);
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to launch kernel: tdist_rand_kernel");
+
+  const unsigned int BLOCK_SIZE = TILE_SIZE;
+
+  dim3 blockDim(1, BLOCK_SIZE, BLOCK_SIZE);
+  dim3 gridDim(N, ceil(double(d) / double(BLOCK_SIZE)),
+               ceil(double(d) / double(BLOCK_SIZE)));
+
+  mvt_sample_kernel<<<gridDim, blockDim>>>(dev_post_x_t, dev_pre_x_t,
+                                           dev_Q, dev_norm_rand, dev_tdist_rand);
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to launch kernel: mvt_sample_kernel");
+
+  CUDA_CALL(
+      cudaMemcpy(host_x_t, dev_post_x_t, VECTOR_SZ, cudaMemcpyDeviceToHost));
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to transfer data to host");
+
+  // for (int i = 0; i < N; ++i)
+  //   std::cout << host_x_t[i] << std::endl;
+  for (unsigned i = 0; i < N; ++i)
+    for (unsigned j = 0; j < d; ++j)
+    {
+      post_x_t[t][i][j] = host_x_t[i * d + j];
+
+      // std::cout << host_x_t[i * d + j] << std::endl;
+    }
+
+  cudaFree(devStates);
+  cudaFree(dev_pre_x_t);
+  cudaFree(dev_post_x_t);
+  cudaFree(dev_Q);
+  free(host_x_t);
+}
+
 __global__ void mvtpdf_kernel_y_minus_Fmu(double *dev_alpha_t, double *dev_y_t, //same as mvn
                                           double *dev_x_t, double *dev_F)
 {
@@ -310,8 +398,8 @@ __global__ void mvtpdf_kernel_Einv_alpha(double *dev_Ealpha_t, //same as mvn
     dev_Ealpha_t[el] = dotProduct;
 }
 
-__global__ void mvtpdf_kernel(double *dev_w_t, double *dev_alpha_t,
-                              double *dev_Ealpha_t)
+__global__ void mvt_pdf_kernel(double *dev_w_t, double *dev_alpha_t,
+                               double *dev_Ealpha_t)
 {
   __shared__ int matOffset;
   __shared__ int m;
@@ -332,6 +420,7 @@ __global__ void mvtpdf_kernel(double *dev_w_t, double *dev_alpha_t,
   int rowIdx = blockIdx.z * blockDim.z + threadIdx.z;
   int colIdx = blockIdx.y * blockDim.y + threadIdx.y;
 
+  // Initialize dimensions
   m = dev_d;
   k = dev_d;
   n = 1;
@@ -373,137 +462,27 @@ __global__ void mvtpdf_kernel(double *dev_w_t, double *dev_alpha_t,
     __syncthreads();
   }
 
+  int el = blockIdx.x;
+  __syncthreads();
+
   // save dot product
   double _quadform = 1.0f + quadform / dev_df;
   double power = -0.5 * (dev_d + dev_df);
 
-  __syncthreads();
   if (rowIdx < m && colIdx < n)
-    dev_w_t[blockIdx.x] = dev_norm * std::pow(_quadform, power);
-}
-
-// MVT kernel wrapper
-void mvt_sample_kernel_wrapper(Eigen::VectorXd **post_x_t,
-                               unsigned *a_t,
-                               const Eigen::MatrixXd Q,
-                               const dim_t N, const dim_t d,
-                               const dim_t t, const float df)
-{
-  // shuffle pre_x_t
-  Eigen::VectorXd *host_pre_x_t = new Eigen::VectorXd[N];
-  for (unsigned i = 0; i < N; ++i)
   {
-    host_pre_x_t[i] = Eigen::VectorXd(d);
-    host_pre_x_t[i] = post_x_t[t - 1][a_t[t * N + i]];
+    dev_w_t[el] = dev_norm * std::pow(_quadform, power);
   }
-
-  double *host_x_t = (double *)malloc(sizeof(double) * N * d);
-  for (int y = 0; y < N; ++y)
-    for (unsigned x = 0; x < d; ++x)
-      host_x_t[y * d + x] = host_pre_x_t[y][x];
-
-  cudaError_t cuda_ret;
-  const size_t VECTOR_SZ = sizeof(double) * N * d;
-  const size_t COVMAT_SZ = sizeof(double) * d * d;
-
-  double *dev_pre_x_t;
-  double *dev_post_x_t;
-  double *dev_Q;
-  double *dev_norm_rand;
-  double *dev_tdist_rand;
-  curandState *devStates;
-
-  /* Allocate space for prng states on device */
-  CUDA_CALL(cudaMalloc((void **)&devStates, N * d * sizeof(curandState)));
-  CUDA_CALL(cudaMalloc((void **)&dev_norm_rand, VECTOR_SZ));
-  CUDA_CALL(cudaMalloc((void **)&dev_tdist_rand, VECTOR_SZ));
-  CUDA_CALL(cudaMalloc((void **)&dev_pre_x_t, VECTOR_SZ));
-  CUDA_CALL(cudaMalloc((void **)&dev_post_x_t, VECTOR_SZ));
-  CUDA_CALL(cudaMalloc((void **)&dev_Q, COVMAT_SZ));
-  cuda_ret = cudaDeviceSynchronize();
-  if (cuda_ret != cudaSuccess)
-    FATAL("Unable to allocate memory on device");
-
-  // double *host_norm_rand;
-  double *host_Q;
-
-  // host_norm_rand = (double *)malloc(VECTOR_SZ);
-  host_Q = (double *)malloc(COVMAT_SZ);
-
-  for (size_t i = 0; i < d; ++i)
-    for (size_t j = 0; j < d; ++j)
-      host_Q[i * d + j] = Q(i, j);
-
-  CUDA_CALL(
-      cudaMemcpy(dev_pre_x_t, host_x_t, VECTOR_SZ, cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dev_Q, host_Q, COVMAT_SZ, cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpyToSymbol(dev_d, &d, sizeof(dim_t)));
-  CUDA_CALL(cudaMemcpyToSymbol(dev_N, &N, sizeof(dim_t)));
-  CUDA_CALL(cudaMemcpyToSymbol(dev_df, &df, sizeof(float)));
-  cuda_ret = cudaDeviceSynchronize();
-  if (cuda_ret != cudaSuccess)
-    FATAL("Unable to transfer data to device");
-
-  dim3 rand_blockDim(512);
-  int rand_gridDim = ceil(double(N * d) / double(rand_blockDim.x));
-
-  /* Setup prng states */
-  mvt_sample_setup_kernel<<<rand_gridDim, rand_blockDim>>>(devStates);
-  cuda_ret = cudaDeviceSynchronize();
-  if (cuda_ret != cudaSuccess)
-    FATAL("Unable to launch kernel: mvt_sample_setup_kernel");
-
-  // Generate random numbers
-  mvt_sample_tdist_rand_kernel<<<rand_gridDim, rand_blockDim>>>(dev_norm_rand, dev_tdist_rand, devStates);
-  cuda_ret = cudaDeviceSynchronize();
-  if (cuda_ret != cudaSuccess)
-    FATAL("Unable to launch kernel: mvt_sample_tdist_rand_kernel");
-
-  const unsigned int BLOCK_SIZE = TILE_SIZE;
-
-  dim3 blockDim(1, BLOCK_SIZE, BLOCK_SIZE);
-  dim3 gridDim(N, ceil(double(d) / double(BLOCK_SIZE)),
-               ceil(double(d) / double(BLOCK_SIZE)));
-
-  mvt_sample_kernel<<<gridDim, blockDim>>>(dev_post_x_t, dev_pre_x_t,
-                                           dev_Q, dev_norm_rand, dev_tdist_rand);
-  cuda_ret = cudaDeviceSynchronize();
-  if (cuda_ret != cudaSuccess)
-    FATAL("Unable to launch kernel: mvt_sample_kernel");
-
-  CUDA_CALL(
-      cudaMemcpy(host_x_t, dev_post_x_t, VECTOR_SZ, cudaMemcpyDeviceToHost));
-  cuda_ret = cudaDeviceSynchronize();
-  if (cuda_ret != cudaSuccess)
-    FATAL("Unable to transfer data to host");
-
-  // for (int i = 0; i < N; ++i)
-  //   std::cout << host_x_t[i] << std::endl;
-  for (unsigned i = 0; i < N; ++i)
-    for (unsigned j = 0; j < d; ++j)
-    {
-      post_x_t[t][i][j] = host_x_t[i * d + j];
-
-      // std::cout << host_x_t[i * d + j] << std::endl;
-    }
-
-  cudaFree(devStates);
-  cudaFree(dev_pre_x_t);
-  cudaFree(dev_post_x_t);
-  cudaFree(dev_Q);
-  free(host_x_t);
 }
 
-// MVTPDF kernel wrapper
-void mvt_pdf_kernel_wrapper(Eigen::VectorXd *w_t,
-                            const Eigen::VectorXd *y_t,
-                            Eigen::VectorXd **post_x_t,
-                            const double norm,
+void mvt_pdf_kernel_wrapper(Eigen::VectorXd *w,
+                            const Eigen::VectorXd &y,
+                            const Eigen::VectorXd &mu,
                             const Eigen::MatrixXd &E_inv,
-                            const Eigen::MatrixXd E,
-                            const Eigen::MatrixXd F,
-                            const dim_t N, const dim_t d,
-                            const dim_t t, const float df)
+                            const Eigen::MatrixXd &F,
+                            const double norm,
+                            const dim_t d,
+                            const float df)
 {
   cudaError_t cuda_ret;
   double *dev_w_t;
@@ -542,13 +521,16 @@ void mvt_pdf_kernel_wrapper(Eigen::VectorXd *w_t,
   host_E_inv = (double *)malloc(COVMAT_SZ);
   host_F = (double *)malloc(COVMAT_SZ);
 
+#pragma omp parallel for
+  for (unsigned j = 0; j < d; ++j)
+    host_y_t[j] = y_t[t][j];
+
+#pragma omp parallel for
   for (unsigned i = 0; i < N; ++i)
     for (unsigned j = 0; j < d; ++j)
-    {
-      host_y_t[j] = y_t[t][j];
       host_x_t[i * d + j] = post_x_t[t][i][j];
-    }
 
+#pragma omp parallel for
   for (unsigned i = 0; i < d; ++i)
     for (unsigned j = 0; j < d; ++j)
     {
@@ -572,18 +554,6 @@ void mvt_pdf_kernel_wrapper(Eigen::VectorXd *w_t,
   cuda_ret = cudaDeviceSynchronize();
   if (cuda_ret != cudaSuccess)
     FATAL("Unable to transfer data to device");
-
-  // dim3 blockDim(2, 512);
-  // int gridDim = ceil(double(N * 2) / double(blockDim.y));
-  // // std::cout << "gridDim: " << gridDim << std::endl;
-  // // std::cout << "blockDim: " << blockDim.x << ", " << blockDim.y <<
-  // std::endl;
-
-  // mvnpdf_kernel<<<gridDim, blockDim>>>(dev_w_t, dev_y_t, dev_x_t, dev_E_inv,
-  //                                      dev_F);
-  // cuda_ret = cudaDeviceSynchronize();
-  // if (cuda_ret != cudaSuccess)
-  //   FATAL("Unable to launch kernel: mvnpdf_kernel_xtra");
 
   const unsigned int BLOCK_SIZE = TILE_SIZE;
 

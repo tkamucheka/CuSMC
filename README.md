@@ -4,7 +4,6 @@
 # CuSMC
 
 <!-- badges: start -->
-
 <!-- badges: end -->
 
 CuSMC is an R package for drawing random samples for a posterior
@@ -14,54 +13,73 @@ Multivariate Normal and Student-T distributions.
 
 ## Prerequisites
 
-Make sure you have a CUDA capable graphic processing unit and the CUDA
-SDK installed. Details on how to setup the CUDA SDK kit can be found
+You do not need a GPU to install and run CuSMC library. However, to
+enjoy the best perfomance, make sure you are running Linux and an Nvidia
+GPU (Graphics Processing Unit) that supports CUDA (most if not all
+modern GPUs do) and the CUDA SDK installed. Details on how to set up the
+CUDA SDK kit can be found
 [here](https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/index.html#installing-cuda-development-tools).
+Windows and MacOS generally will not support GPU acceleration. See more
+details on MacOS support below.
+
+### Linux
+
+If there is no NVidia GPU and CUDA SDK installed, CuSMC will install
+with CPU support only. If an NVidia GPU and CUDA SDK are found during
+installation then full GPU acceleration becomes available. You will need
+the GCC compiler and tool chain installed to build the library on your
+computer. If you are on Debian based distro like Ubuntu, you can install
+the compiler with:
+
+``` sh
+$ sudo apt get install build-essential -y
+```
+
+### MacOS
+
+MacOS supports NVidia GPUs and CUDA up to MacOS version 10.13.6. If you
+have a version of MacOS after 10.13.6 then GPU acceleration will not be
+available. There are two ways to get a compiler toolchain installed on
+MacOS. Option 1, is through `xcode-select` and the other is via
+Homebrew:
+
+``` sh
+# Xcode
+$ xcode-select --install
+
+# Homebrew
+$ brew install gcc
+```
+
+### Windows
+
+Currently, GPU acceleration is not available on Windows. Before
+attempting to install, you will need to install RTOOLS40 to get the
+MSYS2 MINGW64 environment and GCC compiler and toolchain installed and
+available in R. RTOOLS40 can be foundR
+[here](https://cran.r-project.org/bin/windows/Rtools/)
+
+When you have installed the GCC compiler and toolchain, next you will
+need to install the `devtools` and `Rcpp` packages from CRAN as a last
+step before installing `CuSMC`
 
 ``` r
 ## Install the following packages from CRAN
-install.package(devtools)
+install.packages(devtools)
 install.packages(Rcpp)
-install.packages()
 ```
 
 ## Installation
 
-You can install CuSMC from [CRAN](https://CRAN.R-project.org) with:
+You can install CuSMC from this repository with:
 
 ``` r
-install.packages("CuSMC")
+devtools::install_github("tkamucheka/cusmc")
+library(CuSMC)
 ```
 
-## Example
-
-This is a basic example which shows you how to solve a common problem:
+## Examples
 
 ``` r
-library(CuSMC)
 ## basic example code
 ```
-
-What is special about using `README.Rmd` instead of just `README.md`?
-You can include R chunks like so:
-
-``` r
-summary(cars)
-#>      speed           dist       
-#>  Min.   : 4.0   Min.   :  2.00  
-#>  1st Qu.:12.0   1st Qu.: 26.00  
-#>  Median :15.0   Median : 36.00  
-#>  Mean   :15.4   Mean   : 42.98  
-#>  3rd Qu.:19.0   3rd Qu.: 56.00  
-#>  Max.   :25.0   Max.   :120.00
-```
-
-You’ll still need to render `README.Rmd` regularly, to keep `README.md`
-up-to-date.
-
-You can also embed plots, for example:
-
-<img src="man/figures/README-pressure-1.png" width="100%" />
-
-In that case, don’t forget to commit and push the resulting figure
-files, so they display on GitHub\!

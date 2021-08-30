@@ -1,9 +1,10 @@
-#ifndef __GPU
+#ifdef __GPU
 
 #ifndef __STATISTICS_CPP
 #define __STATISTICS_CPP
 
 #include "../inst/include/statistics.hpp"
+
 #include "../inst/include/distributions/mvn_dist.hpp"
 
 // Base class constructor/destructor
@@ -142,7 +143,7 @@ void StandardNormalDistribution::sample(const std::vector<double> &uniform_draws
   }
 
   // Slow, but easy to implement
-  for (size_t i = 0; i < uniform_draws.size() / 2; i++)
+  for (int i = 0; i < uniform_draws.size() / 2; i++)
   {
     dist_draws[2 * i] = sqrt(-2.0 * log(uniform_draws[2 * i])) * sin(2 * M_PI * uniform_draws[2 * i + 1]);
     dist_draws[2 * i + 1] = sqrt(-2.0 * log(uniform_draws[2 * i])) * cos(2 * M_PI * uniform_draws[2 * i + 1]);
@@ -159,40 +160,33 @@ MultiVariateNormalDistribution::MultiVariateNormalDistribution(const Eigen::Vect
   mu = m;
   sigma = s;
 }
-MultiVariateNormalDistribution::~MultiVariateNormalDistribution() {}
+MultiVariateNormalDistribution::~MultiVariateNormalDistribution(){};
 
 // Return class instance
 MultiVariateNormalDistribution *MultiVariateNormalDistribution::getInstance(const distParams_t params)
 {
   // MultiVariateNormalDistribution MVN(mu, sigma);
-  return new MultiVariateNormalDistribution(params.mu, params.sigma);
+  MultiVariateNormalDistribution MVN = new MultiVariateNormalDistribution(params.mu, params.sigma);
+  MVN->params = params;
+
+  return MVN;
 }
 
 // Distribution functions
-double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const
+Eigen::VectorXd MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const
 {
   unsigned int n = mu.rows();
   double sqrt2pi = std::sqrt(2 * M_PI);
   double norm = 1 / (std::pow(sqrt2pi, n) *
                      std::pow(sigma.determinant(), 0.5));
 
-  Eigen::VectorXd y_Fmu = y - (F * mu);
-  double quadform = y_Fmu.transpose() * sigma.inverse() * y_Fmu;
+  Eigen::VectorXd w = new Eigen::VectorXd::zeros(this->params.N);
+  mvn_pdf_kernel_wrapper(w, y, mu, sigma.inverse(), F, norm, mu.rows());
+  // DEBUG:
+  // Rcpp::Rcout << "PDF: " << w << std::endl;
 
-  return norm * exp(-0.5 * quadform);
-}
-
-double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y,
-                                           const Eigen::VectorXd &x,
-                                           const Eigen::MatrixXd &E) const
-{
-  unsigned int n = x.rows();
-  double sqrt2pi = std::sqrt(2 * M_PI);
-  double norm = 1 / (std::pow(sqrt2pi, n) * std::pow(E.determinant(), 0.5));
-  double quadform = (y - x).transpose() * E.inverse() * (y - x);
-
-  return norm * exp(-0.5 * quadform);
-}
+  return w;
+};
 
 //Calculate constant norm
 double MultiVariateNormalDistribution::getNorm() const
@@ -203,52 +197,110 @@ double MultiVariateNormalDistribution::getNorm() const
   return 1.0f / (std::pow(sqrt2pi, n) * std::pow(this->sigma.determinant(), 0.5));
 }
 
-double MultiVariateNormalDistribution::cdf() const { return 0.0f; }
+double MultiVariateNormalDistribution::cdf() const { return 0.0f; };
 
 // Inverse cumulative distribution function
-double MultiVariateNormalDistribution::inv_cdf(const double &quantile) const { return 0.0f; }
+double MultiVariateNormalDistribution::inv_cdf(const double &quantile) const { return 0.0f; };
 
 // Descriptive stats
-Eigen::VectorXd MultiVariateNormalDistribution::mean() const { return mu; }
-// Eigen::VectorXd MultiVariateNormalDistribution::var() const { return mu; }
-Eigen::VectorXd MultiVariateNormalDistribution::stdev() const { return sigma; }
+Eigen::VectorXd MultiVariateNormalDistribution::mean() const { return mu; };
+// Eigen::VectorXd MultiVariateNormalDistribution::var() const { return mu; };
+Eigen::VectorXd MultiVariateNormalDistribution::stdev() const { return sigma; };
 
 // Random draw function
-void MultiVariateNormalDistribution::sample(
-    Eigen::VectorXd &dist_draws,
-    const Eigen::MatrixXd Q,
-    const unsigned int n_iterations) const
+void MultiVariateNormalDistribution::sample(Eigen::VectorXd **post_x_t, unsigned *a_t,
+                                            const Eigen::MatrixXd Q, const dim_t N, const dim_t d,
+                                            const dim_t t)
 {
-  // Generator
-  std::random_device randomDevice{};
-  std::mt19937 generator{randomDevice()};
-  // Uniform distribution between 0 and 1
-  std::uniform_real_distribution<double> U{0, 1};
-  // Normal distribution between 0 and 1
-  std::normal_distribution<double> N{0, 1};
+  cudaError_t cuda_ret;
+  const size_t VECTOR_SZ = sizeof(double) * N * d;
+  const size_t COVMAT_SZ = sizeof(double) * d * d;
 
-  unsigned int n = mu.rows();
+  // device memory
+  double *dev_pre_x_t;
+  double *dev_post_x_t;
+  double *dev_Q;
+  double *dev_norm_rand;
+  curandState *devPRNGStates;
 
-  // Generate x from the N(0, I) distribution
-  Eigen::VectorXd x(n);
-  Eigen::VectorXd sum(n);
-  sum.setZero();
-
-#pragma omp parallel for
-  for (unsigned int i = 0; i < n_iterations; i++)
+  // shuffle pre_x_t
+  Eigen::VectorXd *host_pre_x_t = new Eigen::VectorXd[N];
+  for (unsigned i = 0; i < N; ++i)
   {
-    for (unsigned j = 0; j < n; ++j)
-      x[j] = N(generator);
-
-    x = 0.5 * (x + Eigen::VectorXd::Ones(n));
-    sum += x;
+    host_pre_x_t[i] = Eigen::VectorXd(d);
+    host_pre_x_t[i] = post_x_t[t - 1][a_t[t * N + i]];
   }
 
-  sum = sum - (static_cast<double>(n_iterations) / 2) * Eigen::VectorXd::Ones(n);
-  x = sum / (std::sqrt(static_cast<double>(n_iterations) / 12));
+  double *host_x_t = (double *)malloc(sizeof(double) * N * d);
+  for (int y = 0; y < N; ++y)
+    for (unsigned x = 0; x < d; ++x)
+      host_x_t[y * d + x] = host_pre_x_t[y][x];
 
-  dist_draws = (Q * x) + mu;
-}
+  double *host_Q = (double *)malloc(COVMAT_SZ);
+  for (size_t i = 0; i < d; ++i)
+    for (size_t j = 0; j < d; ++j)
+      host_Q[i * d + j] = Q(i, j);
+
+  /* Allocate space for prng states on device */
+  CUDA_CALL(cudaMalloc((void **)&devPRNGStates, N * d * sizeof(curandState)));
+  CUDA_CALL(cudaMalloc((void **)&dev_norm_rand, VECTOR_SZ));
+  CUDA_CALL(cudaMalloc((void **)&dev_pre_x_t, VECTOR_SZ));
+  CUDA_CALL(cudaMalloc((void **)&dev_post_x_t, VECTOR_SZ));
+  CUDA_CALL(cudaMalloc((void **)&dev_Q, COVMAT_SZ));
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to allocate memory on device");
+
+  CUDA_CALL(cudaMemcpy(dev_pre_x_t, host_x_t, VECTOR_SZ, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dev_Q, host_Q, COVMAT_SZ, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpyToSymbol(dev_d, &d, sizeof(dim_t)));
+  CUDA_CALL(cudaMemcpyToSymbol(dev_N, &N, sizeof(dim_t)));
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to transfer data to device");
+
+  dim3 rand_blockDim(512);
+  int rand_gridDim = ceil(double(N * d) / double(rand_blockDim.x));
+
+  /* Setup prng states */
+  setup_kernel<<<rand_gridDim, rand_blockDim>>>(devPRNGStates);
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to launch kernel: setup_kernel");
+
+  // Generate random numbers
+  norm_rand_kernel<<<rand_gridDim, rand_blockDim>>>(dev_norm_rand, devPRNGStates);
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to launch kernel: norm_rand_kernel");
+
+  const unsigned int BLOCK_SIZE = TILE_SIZE;
+
+  dim3 blockDim(1, BLOCK_SIZE, BLOCK_SIZE);
+  dim3 gridDim(N, ceil(double(d) / double(BLOCK_SIZE)),
+               ceil(double(d) / double(BLOCK_SIZE)));
+
+  mvn_sample_kernel_xtra<<<gridDim, blockDim>>>(dev_post_x_t, dev_pre_x_t,
+                                                dev_Q, dev_norm_rand);
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to launch kernel: mvn_sample_kernel");
+
+  CUDA_CALL(cudaMemcpy(host_x_t, dev_post_x_t, VECTOR_SZ, cudaMemcpyDeviceToHost));
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to transfer data to host");
+
+  for (unsigned i = 0; i < N; ++i)
+    for (unsigned j = 0; j < d; ++j)
+      post_x_t[t][i][j] = host_x_t[i * d + j];
+
+  cudaFree(devPRNGStates);
+  cudaFree(dev_pre_x_t);
+  cudaFree(dev_post_x_t);
+  cudaFree(dev_Q);
+  free(host_x_t);
+};
 
 // Multi-Variate T Student Distribution ====================================
 
@@ -260,8 +312,8 @@ MultiVariateTStudentDistribution::MultiVariateTStudentDistribution(
   this->mu = m;    //location vector
   this->sigma = s; //scale matrix
   this->nu = nu;   //degree of freedom
-}
-MultiVariateTStudentDistribution::~MultiVariateTStudentDistribution() {}
+};
+MultiVariateTStudentDistribution::~MultiVariateTStudentDistribution(){};
 
 // Return class instance
 MultiVariateTStudentDistribution *MultiVariateTStudentDistribution::getInstance(const distParams_t params)
@@ -281,37 +333,37 @@ double MultiVariateTStudentDistribution::pdf(const Eigen::VectorXd &x) const
   double quadform = 1.0f + std::pow(nu, -1) * quadform1;
 
   return (norm1 * norm2) * std::pow(quadform, (-0.5 * (nu + n)));
-}
+};
 
 double MultiVariateTStudentDistribution::pdf(const Eigen::VectorXd &y,
                                              const Eigen::VectorXd &x,
                                              const Eigen::MatrixXd &E) const
 {
   return 0.0f;
-}
+};
 
 //Calculate constant norm
 double MultiVariateTStudentDistribution::getNorm() const
 {
   int n = this->mu.rows();
   double pi_df = M_PI * this->nu;
-  double norm1 = std::pow(pi_df, (-0.5 * n)) * std::pow(this->sigma.determinant(), -0.5);
+  double norm1 = std::pow(this->nu, (-0.5 * n)) * std::pow(this->sigma.determinant(), -0.5);
   double norm2 = tgamma(0.5 * (this->nu + n)) / tgamma(0.5 * this->nu);
 
   return norm1 * norm2;
-}
+};
 
-double MultiVariateTStudentDistribution::cdf() const { return 0.0f; }
+double MultiVariateTStudentDistribution::cdf() const { return 0.0f; };
 
 // Inverse cumulative distribution function
-double MultiVariateTStudentDistribution::inv_cdf(const double &quantile) const { return 0.0f; }
+double MultiVariateTStudentDistribution::inv_cdf(const double &quantile) const { return 0.0f; };
 
 // Descriptive stats
-Eigen::VectorXd MultiVariateTStudentDistribution::mean() const { return mu; } //note that this is location vector, not the mean vector!
+Eigen::VectorXd MultiVariateTStudentDistribution::mean() const { return mu; }; //note that this is location vector, not the mean vector!
 
-Eigen::VectorXd MultiVariateTStudentDistribution::stdev() const { return sigma; } //note that this is scale matrix, not the covarriance matrix which is df/(df-2)*sigma
+Eigen::VectorXd MultiVariateTStudentDistribution::stdev() const { return sigma; }; //note that this is scale matrix, not the covarriance matrix which is df/(df-2)*sigma
 
-float MultiVariateTStudentDistribution::dfree() const { return nu; }
+float MultiVariateTStudentDistribution::dfree() const { return nu; };
 
 // Random draw function
 void MultiVariateTStudentDistribution::sample(Eigen::VectorXd &dist_draws,
@@ -366,7 +418,8 @@ void MultiVariateTStudentDistribution::sample(Eigen::VectorXd &dist_draws,
   Eigen::MatrixXd Q = eigenvectors * sqrt_eigenvalues;
 
   dist_draws = chi.asDiagonal() * (Q * x) + mu; //x = dx1, mu = dx1, Q = dxd, chi = dx1
-}
+};
 
-#endif // __STATISTICS_CPP
-#endif // __GPU
+#endif
+
+#endif
