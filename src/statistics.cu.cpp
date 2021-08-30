@@ -174,13 +174,14 @@ MultiVariateNormalDistribution *MultiVariateNormalDistribution::getInstance(cons
 // Distribution functions
 Eigen::VectorXd MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const
 {
-  unsigned int n = mu.rows();
-  double sqrt2pi = std::sqrt(2 * M_PI);
-  double norm = 1 / (std::pow(sqrt2pi, n) *
-                     std::pow(sigma.determinant(), 0.5));
+  // unsigned int n = mu.rows();
+  // double sqrt2pi = std::sqrt(2 * M_PI);
+  double norm = this->getNorm();
 
-  Eigen::VectorXd w = new Eigen::VectorXd::zeros(this->params.N);
-  mvn_pdf_kernel_wrapper(w, y, mu, sigma.inverse(), F, norm, mu.rows());
+  Eigen::VectorXd w = Eigen::VectorXd::Zero(this->params.N);
+  mvn_pdf_kernel_wrapper(w, y, mu, sigma_inv, F, norm,
+                         this->params.N, this->params.d, this->params.t);
+
   // DEBUG:
   // Rcpp::Rcout << "PDF: " << w << std::endl;
 
@@ -196,7 +197,8 @@ MultiVariateNormalDistribution::getNorm() const
   int n = this->mu.rows();
 
   double sqrt2pi = std::sqrt(2 * M_PI);
-  return 1.0f / (std::pow(sqrt2pi, n) * std::pow(this->sigma.determinant(), 0.5));
+  return 1.0f / (std::pow(sqrt2pi, n) *
+                 std::pow(sigma.determinant(), 0.5));
 }
 
 double MultiVariateNormalDistribution::cdf() const { return 0.0f; };
@@ -211,9 +213,12 @@ Eigen::VectorXd MultiVariateNormalDistribution::stdev() const { return sigma; };
 
 // Random draw function
 void MultiVariateNormalDistribution::sample(
-    Eigen::VectorXd &dist_draws,
+    Eigen::VectorXd **post_x_t,
+    unsigned *a_t,
     const Eigen::MatrixXd Q,
-    const unsigned int n_iterations)
+    const dim_t N,
+    const dim_t d,
+    const dim_t t)
 {
   mvn_sample_kernel_wrapper(post_x_t, a_t, Q, N, d, t);
 };
@@ -243,11 +248,14 @@ Eigen::VectorXd MultiVariateTStudentDistribution::pdf(const Eigen::VectorXd &y, 
 {
   double norm = this->getNorm();
 
-  Eigen::VectorXd w = new Eigen::VectorXd::zeros(this->params.N);
-  mvt_pdf_kernel_wrapper(w, y, mu, sigma.inverse(), F, norm, mu.rows());
+  Eigen::VectorXd w = Eigen::VectorXd::Zero(this->params.N);
+  mvt_pdf_kernel_wrapper(w, y, mu, sigma_inv, F, norm,
+                         this->params.N, this->params.d, this->params.t,
+                         df);
 
   // DEBUG:
   // Rcpp::Rcout << "PDF: " << w << std::endl;
+
   return w;
 };
 
@@ -282,10 +290,12 @@ Eigen::VectorXd MultiVariateTStudentDistribution::stdev() const { return sigma; 
 float MultiVariateTStudentDistribution::dfree() const { return nu; };
 
 // Random draw function
-void MultiVariateTStudentDistribution::sample(Eigen::VectorXd **post_x_t, unsigned *a_t,
-                                            const Eigen::MatrixXd Q, const dim_t N, const dim_t d,
-                                            const dim_t t,
-                                            const float df) const
+void MultiVariateTStudentDistribution::sample(
+    Eigen::VectorXd **post_x_t,
+    unsigned *a_t,
+    const Eigen::MatrixXd Q,
+    const dim_t N, const dim_t d, const dim_t t,
+    const float df) const
 {
   mvt_sample_kernel_wrapper(post_x_t, a_t, Q, N, d, t, df);
 };
