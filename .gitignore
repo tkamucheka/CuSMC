@@ -5,4 +5,6 @@
 # Ignore MacOS junk files
 .DS_Store 
 
+# ignore R workspace
 .Rproj.user
+.Rhistory
