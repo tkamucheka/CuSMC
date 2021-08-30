@@ -47,11 +47,14 @@ void initialize(std::string distribution_opt, Eigen::VectorXd **x_t, Eigen::Vect
 {
   // Distributions
   Distributions["normal"] =
-      [](distParams_t params) { return StandardNormalDistribution::getInstance(params); };
+      [](distParams_t params)
+  { return StandardNormalDistribution::getInstance(params); };
   Distributions["mvn"] =
-      [](distParams_t params) { return MultiVariateNormalDistribution::getInstance(params); };
+      [](distParams_t params)
+  { return MultiVariateNormalDistribution::getInstance(params); };
   Distributions["mvt"] =
-      [](distParams_t params) { return MultiVariateTStudentDistribution::getInstance(params); };
+      [](distParams_t params)
+  { return MultiVariateTStudentDistribution::getInstance(params); };
 
   // assert(Distributions.find(distribution_opt) != Distributions.end());
 
@@ -88,11 +91,14 @@ void propagate_K(std::string distribution_opt, Eigen::VectorXd **post_x_t, unsig
 {
   // Distributions
   Distributions["normal"] =
-      [](distParams_t params) { return StandardNormalDistribution::getInstance(params); };
+      [](distParams_t params)
+  { return StandardNormalDistribution::getInstance(params); };
   Distributions["mvn"] =
-      [](distParams_t params) { return MultiVariateNormalDistribution::getInstance(params); };
+      [](distParams_t params)
+  { return MultiVariateNormalDistribution::getInstance(params); };
   Distributions["mvt"] =
-      [](distParams_t params) { return MultiVariateTStudentDistribution::getInstance(params); };
+      [](distParams_t params)
+  { return MultiVariateTStudentDistribution::getInstance(params); };
 
   // Find the eigen vectors of the covariance matrix
   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>
@@ -165,11 +171,14 @@ void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen
 {
   // Distributions
   Distributions["normal"] =
-      [](distParams_t params) { return StandardNormalDistribution::getInstance(params); };
+      [](distParams_t params)
+  { return StandardNormalDistribution::getInstance(params); };
   Distributions["mvn"] =
-      [](distParams_t params) { return MultiVariateNormalDistribution::getInstance(params); };
+      [](distParams_t params)
+  { return MultiVariateNormalDistribution::getInstance(params); };
   Distributions["mvt"] =
-      [](distParams_t params) { return MultiVariateTStudentDistribution::getInstance(params); };
+      [](distParams_t params)
+  { return MultiVariateTStudentDistribution::getInstance(params); };
 
 #ifndef __GPU
 #pragma omp parallel for
@@ -214,7 +223,7 @@ void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen
 
   StatisticalDistribution *dist = Distributions[distribution_opt](params);
 
-  dist->pdf(y_t, F);
+  w_t[t] = dist->pdf(y_t, F);
 
   delete dist;
 
@@ -228,17 +237,21 @@ void MCMC(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
 {
   // Initialize Resamplers and Distributions
   // Resamplers;
-  Resamplers["metropolis"] = [](unsigned *a_t, Eigen::VectorXd *w_t, int N, unsigned t, int B = 10) {
+  Resamplers["metropolis"] = [](unsigned *a_t, Eigen::VectorXd *w_t, int N, unsigned t, int B = 10)
+  {
     Sampler::metropolis_hastings(a_t, w_t, N, t, B);
   };
 
   // Distributions
   Distributions["normal"] =
-      [](distParams_t params) { return StandardNormalDistribution::getInstance(params); };
+      [](distParams_t params)
+  { return StandardNormalDistribution::getInstance(params); };
   Distributions["mvn"] =
-      [](distParams_t params) { return MultiVariateNormalDistribution::getInstance(params); };
+      [](distParams_t params)
+  { return MultiVariateNormalDistribution::getInstance(params); };
   Distributions["mvt"] =
-      [](distParams_t params) { return MultiVariateTStudentDistribution::getInstance(params); };
+      [](distParams_t params)
+  { return MultiVariateTStudentDistribution::getInstance(params); };
 
   // Assert availability of resampler and distribution
   // assert(Resamplers.find(resampler_opt) != Resamplers.end());
@@ -282,17 +295,21 @@ void MCMC_step(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
 {
   // Initialize Resamplers and Distributions
   // Resamplers;
-  Resamplers["metropolis"] = [](unsigned *a_t, Eigen::VectorXd *w_t, int N, unsigned t, int B = 10) {
+  Resamplers["metropolis"] = [](unsigned *a_t, Eigen::VectorXd *w_t, int N, unsigned t, int B = 10)
+  {
     Sampler::metropolis_hastings(a_t, w_t, N, t, B);
   };
 
   // Distributions
   Distributions["normal"] =
-      [](distParams_t params) { return StandardNormalDistribution::getInstance(params); };
+      [](distParams_t params)
+  { return StandardNormalDistribution::getInstance(params); };
   Distributions["mvn"] =
-      [](distParams_t params) { return MultiVariateNormalDistribution::getInstance(params); };
+      [](distParams_t params)
+  { return MultiVariateNormalDistribution::getInstance(params); };
   Distributions["mvt"] =
-      [](distParams_t params) { return MultiVariateTStudentDistribution::getInstance(params); };
+      [](distParams_t params)
+  { return MultiVariateTStudentDistribution::getInstance(params); };
 
   // Assert availability of resampler and distribution
   // assert(Resamplers.find(resampler_opt) != Resamplers.end());

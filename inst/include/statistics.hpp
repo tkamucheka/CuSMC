@@ -39,9 +39,9 @@ public:
 
   // Return class instance
   template <class M, class S>
-  void init(const M, const S){}
+  void init(const M, const S) {}
   template <class M, class S, class N>
-  void init(const M, const S, const N){}
+  void init(const M, const S, const N) {}
   static StatisticalDistribution *getInstance() { return new StatisticalDistribution(); }
 
   // Distribution functions
@@ -115,6 +115,8 @@ private:
   Eigen::MatrixXd sigma; // standard deviation of distribution
 
 public:
+  distParams_t params;
+
   MultiVariateNormalDistribution(){};
   MultiVariateNormalDistribution(const Eigen::VectorXd &mu,
                                  const Eigen::MatrixXd &sigma);
@@ -131,6 +133,7 @@ public:
   };
 
   // Distribution functions
+  Eigen::VectorXd pdf(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const;
   double pdf(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const;
   double pdf(const Eigen::VectorXd &y,
              const Eigen::VectorXd &x,
@@ -160,6 +163,8 @@ private:
   float nu;
 
 public:
+  distParams_t params;
+  
   MultiVariateTStudentDistribution(){};
   MultiVariateTStudentDistribution(const Eigen::VectorXd &mu,
                                    const Eigen::MatrixXd &sigma,

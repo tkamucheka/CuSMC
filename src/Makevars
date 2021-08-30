@@ -45,8 +45,10 @@ CPP_FLAGS       = -O3 -std=c++17 -Xpreprocessor -fopenmp -fPIC \
 									-I/usr/local/include $(R_INCLUDES) $(PKG_INCLUDES) \
 									$(ALL_CPPFLAGS)
 
-NVCC_FLAGS  		= --x cu -std=c++14 -Xcompiler "$(CUDA_XCOMPILER)" \
-									-I/usr/local/include $(CUDA_INCLUDES) $(R_INCLUDES) $(PKG_INCLUDES) \
+NVCC_FLAGS  		= --x cu -std=c++14 -D__GPU 							\
+									-Xcompiler "$(CUDA_XCOMPILER)" 					\
+									-I/usr/local/include $(CUDA_INCLUDES) 	\
+									$(R_INCLUDES) $(PKG_INCLUDES) 					\
 									$(ALL_CPPFLAGS)
 									
 NVCC_LD_FLAGS		= $(CUDA_LIB) $(OPENMP_LIBS)
@@ -69,7 +71,7 @@ API_OBJECTS			= mvt_dist.rcpp.o mvn_dist.rcpp.o samplers.rcpp.o run.rcpp.o \
 CPP_OBJECTS     = linear_algebra.o mcmc.o particle_filter.o samplers.o \
 									utility.o
 CXX_OBJECTS 		= statistics.cc.o
-CUDA_OBJECTS		= mvn_dist.cu.o
+CUDA_OBJECTS		= statistics.cu.o mvn_dist.cu.o  mvt_dist.cu.o
 # PKG_OBJECTS			=  
 CUSMC_OBJECTS 	= $(PKG_OBJECTS) $(API_OBJECTS) $(CPP_OBJECTS) $(CXX_OBJECTS)
 

@@ -4,7 +4,6 @@
 #define __STATISTICS_CPP
 
 #include "../inst/include/statistics.hpp"
-
 #include "../inst/include/distributions/mvn_dist.hpp"
 
 // Base class constructor/destructor
