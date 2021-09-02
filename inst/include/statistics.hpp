@@ -22,13 +22,16 @@
 // Distribution initializations options object
 struct distParams_t
 {
-  int N, d, t;
   Eigen::VectorXd **post_x_t;
   unsigned *a_t;
   Eigen::VectorXd mu;
   Eigen::MatrixXd sigma;
+  Eigen::matrixXd sigma_det;
+  Eigen::MatrixXd sigma_inv;
   float nu = 0.0f;
   Eigen::MatrixXd Q;
+  Eigen::MatrixXd Q_w;
+  int N, d, t;
 };
 
 class StatisticalDistribution
