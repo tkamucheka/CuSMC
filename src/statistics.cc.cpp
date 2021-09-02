@@ -175,8 +175,9 @@ double MultiVariateNormalDistribution::pdf(
 {
   unsigned int n = mu.rows();
   double sqrt2pi = std::sqrt(2 * M_PI);
+  // can eliminate 1 / root(2pi)^d
   double norm = 1 / (std::pow(sqrt2pi, n) *
-                     std::pow(sigma.determinant(), 0.5));
+                     std::pow(sigma_det, 0.5));
 
   Eigen::VectorXd y_Fmu = y - (F * mu);
   double quadform = y_Fmu.transpose() * sigma_inv * y_Fmu;

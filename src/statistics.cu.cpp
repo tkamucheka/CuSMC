@@ -198,7 +198,7 @@ MultiVariateNormalDistribution::getNorm() const
 
   double sqrt2pi = std::sqrt(2 * M_PI);
   return 1.0f / (std::pow(sqrt2pi, n) *
-                 std::pow(sigma.determinant(), 0.5));
+                 std::pow(sigma_det, 0.5));
 }
 
 double MultiVariateNormalDistribution::cdf() const { return 0.0f; };
@@ -215,12 +215,13 @@ Eigen::VectorXd MultiVariateNormalDistribution::stdev() const { return sigma; };
 void MultiVariateNormalDistribution::sample(
     Eigen::VectorXd **post_x_t,
     unsigned *a_t,
+    const Eigen::MatrixXd G,
     const Eigen::MatrixXd Q,
     const dim_t N,
     const dim_t d,
     const dim_t t)
 {
-  mvn_sample_kernel_wrapper(post_x_t, a_t, Q, N, d, t);
+  mvn_sample_kernel_wrapper(post_x_t, a_t, G, Q, N, d, t);
 };
 
 // Multi-Variate T Student Distribution ====================================
@@ -271,7 +272,7 @@ double MultiVariateTStudentDistribution::getNorm() const
 {
   int n = this->mu.rows();
   double pi_df = M_PI * this->nu;
-  double norm1 = std::pow(this->nu, (-0.5 * n)) * std::pow(this->sigma.determinant(), -0.5);
+  double norm1 = std::pow(this->nu, (-0.5 * n)) * std::pow(this->sigma_det, -0.5);
   double norm2 = tgamma(0.5 * (this->nu + n)) / tgamma(0.5 * this->nu);
 
   return norm1 * norm2;
