@@ -26,7 +26,7 @@ struct env_t
 {
   unsigned N, d, timeSteps;
   Eigen::VectorXd *y_t;
-  Eigen::MatrixXd F, G, C0;
+  Eigen::MatrixXd F, G, V, W, C0;
   Eigen::VectorXd m0;
   float df;
 } ENV;
@@ -50,8 +50,9 @@ struct env_t
 //' @export
 // [[Rcpp::export]]
 List run(unsigned &N, unsigned &d, unsigned &timeSteps,
-         Eigen::MatrixXd Y, Eigen::VectorXd m0,
-         Eigen::MatrixXd C0, Eigen::MatrixXd F, Eigen::MatrixXd G,
+         Eigen::MatrixXd Y,
+         Eigen::VectorXd m0, Eigen::MatrixXd C0, Eigen::MatrixXd F, Eigen::MatrixXd G,
+         Eigen::MatrixXd V, Eigen::MatrixXd W,
          float df, std::string resampler, std::string distribution, unsigned p = 0)
 {
   assert(p < N);
@@ -65,6 +66,8 @@ List run(unsigned &N, unsigned &d, unsigned &timeSteps,
   ENV.C0 = C0; // Eigen::MatrixXd::Identity(d, d);
   ENV.F = F;   //Eigen::MatrixXd::Identity(d, d);
   ENV.G = G;
+  ENV.V = V;
+  ENV.W = W;
   ENV.df = df;
 
   // // Initialize variables
@@ -89,11 +92,17 @@ List run(unsigned &N, unsigned &d, unsigned &timeSteps,
 
   // // Run particle filter
   float runtime;
-  particle_filter(post_x_t, w_t, a_t, ENV.y_t, ENV.F, ENV.G, ENV.m0, ENV.C0,
-                  ENV.d, N, ENV.timeSteps, runtime, resampler, distribution, ENV.df);
+  particle_filter(
+      post_x_t, w_t, a_t, ENV.y_t,
+      ENV.F, ENV.G,
+      ENV.m0, ENV.C0,
+      ENV.V, ENV.W,
+      N, ENV.d, ENV.timeSteps, runtime, resampler, distribution, ENV.df);
   writeOutput(ENV.y_t, w_t, post_x_t, N, ENV.d, ENV.timeSteps, p);
 
-  // Build return object
+  // Build return object list
+  // https://stackoverflow.com/questions/3088650/how-do-i-create-a-list-of-vectors-in-rcpp
+
   List ret;
   // ret["ancestors"] = a_t;
   // ret["weights"] = w_t;
