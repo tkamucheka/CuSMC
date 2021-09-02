@@ -180,7 +180,7 @@ double MultiVariateNormalDistribution::pdf(
                      std::pow(sigma_det, 0.5));
 
   Eigen::VectorXd y_Fmu = y - (F * mu);
-  double quadform = y_Fmu.transpose() * sigma_inv * y_Fmu;
+  double quadform = y_Fmu.transpose() * sigma.inverse() * y_Fmu;
 
   return norm * exp(-0.5 * quadform);
 }
@@ -285,7 +285,7 @@ double MultiVariateTStudentDistribution::pdf(
   // Bug: Missing F matrix
   // double quadform1 = (x - mu).transpose() * sigma.inverse() * (x - mu);
   Eigen::VectorXd y_Fmu = y - (F * mu);
-  double quadform1 = y_Fmu.transpose() * sigma_inv * y_Fmu;
+  double quadform1 = y_Fmu.transpose() * sigma.inverse() * y_Fmu;
   double quadform = 1.0f + std::pow(nu, -1) * quadform1;
 
   return (norm1 * norm2) * std::pow(quadform, (-0.5 * (nu + n)));
@@ -348,7 +348,7 @@ void MultiVariateTStudentDistribution::sample(
 
   for (unsigned int i = 0; i < n_iterations; i++)
   {
-#pragma omp parallel for
+#pragma omp parallel for 
     for (unsigned j = 0; j < n; ++j)
     {
       x[j] = N(generator);
