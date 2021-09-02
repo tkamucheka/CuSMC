@@ -213,12 +213,12 @@ void reweight_G(
 
     // Initialize distribution
     // mean  = x[t], covariance matrix sigma = E
-    params.mu = F * post_x_t[t][i];
+    params.mu = post_x_t[t][i];
 
     StatisticalDistribution *dist = Distributions[distributions_opt](params);
 
     // Get new weights from probality density function
-    w_t[t][i] = dist->pdf(y_t[t]);
+    w_t[t][i] = dist->pdf(y_t[t], F);
 
     delete dist;
   }
