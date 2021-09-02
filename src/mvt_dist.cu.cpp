@@ -80,8 +80,11 @@ __global__ void mvt_sample_rand_kernel(double *rand_x, double *rand_chi, curandS
   rand_chi[idx] = std::sqrt(dev_df / rand_chi[idx]);
 }
 
-__global__ void mvt_sample_kernel(double *post_x_t, double *pre_x_t,
-                                  double *Q, double *rand_norm_vars, double *rand_tdist_vars)
+__global__ void mvt_sample_kernel(double *post_x_t,
+                                  double *dev_Gmu,
+                                  double *dev_Q,
+                                  double *rand_norm_vars,
+                                  double *rand_tdist_vars)
 {
   __shared__ int matOffset;
   __shared__ int m;
@@ -124,7 +127,7 @@ __global__ void mvt_sample_kernel(double *post_x_t, double *pre_x_t,
 
     // Read values from matrix A
     _Q[y][x] = (rowIdx < m && x + TILE_ROW < k)
-                   ? Q[(rowIdx * k) + x + TILE_ROW]
+                   ? dev_Q[(rowIdx * k) + x + TILE_ROW]
                    : 0.0;
 
     // Read values from matrix B
@@ -145,43 +148,54 @@ __global__ void mvt_sample_kernel(double *post_x_t, double *pre_x_t,
 
   // save dot product
   if (rowIdx < m && colIdx < n)
-    post_x_t[el] = rand_tdist_vars[el] * dotProduct + pre_x_t[el];
+    post_x_t[el] =
+        rand_tdist_vars[el] * dotProduct + dev_Gmu[el];
 }
 
-void mvt_sample_kernel_wrapper(Eigen::VectorXd **post_x_t, unsigned *a_t,
-                               const Eigen::MatrixXd Q, const dim_t N, const dim_t d,
-                               const dim_t t,
-                               const float df)
+void mvt_sample_kernel_wrapper(
+    Eigen::VectorXd **post_x_t,
+    unsigned *a_t,
+    const Eigen::MatrixXd G,
+    const Eigen::MatrixXd Q,
+    const dim_t N, const dim_t d, const dim_t t,
+    const float df)
 {
+  cudaError_t cuda_ret;
+  const size_t VECTOR_SZ = sizeof(double) * N * d;
+  const size_t COVMAT_SZ = sizeof(double) * d * d;
+
   // Init random seed
   time_t t;
   srand((unsigned)time(&t));
   int seed = rand();
 
   // shuffle pre_x_t
-  Eigen::VectorXd *host_pre_x_t = new Eigen::VectorXd[N];
+  Eigen::VectorXd *_host_pre_x_t = new Eigen::VectorXd[N];
   for (unsigned i = 0; i < N; ++i)
   {
-    host_pre_x_t[i] = Eigen::VectorXd(d);
-    host_pre_x_t[i] = post_x_t[t - 1][a_t[t * N + i]];
+    _host_pre_x_t[i] = Eigen::VectorXd(d);
+    _host_pre_x_t[i] = post_x_t[t - 1][a_t[t * N + i]];
   }
 
-  double *host_x_t = (double *)malloc(sizeof(double) * N * d);
+  // Copy over Eigen data types to 1D arrays
+  double *host_pre_x_t = (double *)malloc(sizeof(double) * N * d);
   for (int y = 0; y < N; ++y)
     for (unsigned x = 0; x < d; ++x)
-      host_x_t[y * d + x] = host_pre_x_t[y][x];
+      host_pre_x_t[y * d + x] = _host_pre_x_t[y][x];
 
+  double *host_G = (double *)malloc(COVMAT_SZ);
   double *host_Q = (double *)malloc(COVMAT_SZ);
   for (size_t i = 0; i < d; ++i)
     for (size_t j = 0; j < d; ++j)
+    {
+      host_G[i * d + j] = G(i, j);
       host_Q[i * d + j] = Q(i, j);
+    }
 
-  cudaError_t cuda_ret;
-  const size_t VECTOR_SZ = sizeof(double) * N * d;
-  const size_t COVMAT_SZ = sizeof(double) * d * d;
-
+  // device memory
   double *dev_pre_x_t;
   double *dev_post_x_t;
+  double *dev_G;
   double *dev_Q;
   double *dev_norm_rand;
   double *dev_tdist_rand;
@@ -193,13 +207,15 @@ void mvt_sample_kernel_wrapper(Eigen::VectorXd **post_x_t, unsigned *a_t,
   CUDA_CALL(cudaMalloc((void **)&dev_tdist_rand, VECTOR_SZ));
   CUDA_CALL(cudaMalloc((void **)&dev_pre_x_t, VECTOR_SZ));
   CUDA_CALL(cudaMalloc((void **)&dev_post_x_t, VECTOR_SZ));
+  CUDA_CALL(cudaMalloc((void **)&dev_G, COVMAT_SZ));
   CUDA_CALL(cudaMalloc((void **)&dev_Q, COVMAT_SZ));
   cuda_ret = cudaDeviceSynchronize();
   if (cuda_ret != cudaSuccess)
     FATAL("Unable to allocate memory on device");
 
   CUDA_CALL(
-      cudaMemcpy(dev_pre_x_t, host_x_t, VECTOR_SZ, cudaMemcpyHostToDevice));
+      cudaMemcpy(dev_pre_x_t, host_pre_x_t, VECTOR_SZ, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dev_G, host_G, COVMAT_SZ, cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(dev_Q, host_Q, COVMAT_SZ, cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpyToSymbol(dev_seed, &seed, sizeof(int)));
   CUDA_CALL(cudaMemcpyToSymbol(dev_d, &d, sizeof(dim_t)));
@@ -230,33 +246,39 @@ void mvt_sample_kernel_wrapper(Eigen::VectorXd **post_x_t, unsigned *a_t,
   dim3 gridDim(N, ceil(double(d) / double(BLOCK_SIZE)),
                ceil(double(d) / double(BLOCK_SIZE)));
 
-  mvt_sample_kernel<<<gridDim, blockDim>>>(dev_post_x_t, dev_pre_x_t,
+  mvt_sample_Gmu_kernel<<<gridDim, blockDim>>>(dev_Gmu, dev_G, dev_pre_x_t);
+  cuda_ret = cudaDeviceSynchronize();
+  if (cuda_ret != cudaSuccess)
+    FATAL("Unable to launch kernel: mvt_sample_Gmu_kernel");
+
+  mvt_sample_kernel<<<gridDim, blockDim>>>(dev_post_x_t,
+                                           dev_Gmu,
                                            dev_Q, dev_norm_rand, dev_tdist_rand);
   cuda_ret = cudaDeviceSynchronize();
   if (cuda_ret != cudaSuccess)
     FATAL("Unable to launch kernel: mvt_sample_kernel");
 
   CUDA_CALL(
-      cudaMemcpy(host_x_t, dev_post_x_t, VECTOR_SZ, cudaMemcpyDeviceToHost));
+      cudaMemcpy(host_pre_x_t, dev_post_x_t, VECTOR_SZ, cudaMemcpyDeviceToHost));
   cuda_ret = cudaDeviceSynchronize();
   if (cuda_ret != cudaSuccess)
     FATAL("Unable to transfer data to host");
 
   // for (int i = 0; i < N; ++i)
-  //   std::cout << host_x_t[i] << std::endl;
+  //   std::cout << host_pre_x_t[i] << std::endl;
   for (unsigned i = 0; i < N; ++i)
     for (unsigned j = 0; j < d; ++j)
     {
-      post_x_t[t][i][j] = host_x_t[i * d + j];
+      post_x_t[t][i][j] = host_pre_x_t[i * d + j];
 
-      // std::cout << host_x_t[i * d + j] << std::endl;
+      // std::cout << host_pre_x_t[i * d + j] << std::endl;
     }
 
   cudaFree(devStates);
   cudaFree(dev_pre_x_t);
   cudaFree(dev_post_x_t);
   cudaFree(dev_Q);
-  free(host_x_t);
+  free(host_pre_x_t);
 }
 
 __global__ void mvt_pdf_kernel_y_minus_Fmu(double *dev_alpha_t, double *dev_y_t, //same as mvn
@@ -512,13 +534,13 @@ void mvt_pdf_kernel_wrapper(Eigen::VectorXd &w,
 
   double *host_w_t;
   double *host_y_t;
-  double *host_x_t;
+  double *host_pre_x_t;
   double *host_E_inv;
   double *host_F;
 
   host_w_t = (double *)malloc(WEIGHTS_SZ);
   host_y_t = (double *)malloc(INPUT_SZ);
-  host_x_t = (double *)malloc(PARTICLES_SZ);
+  host_pre_x_t = (double *)malloc(PARTICLES_SZ);
   host_E_inv = (double *)malloc(COVMAT_SZ);
   host_F = (double *)malloc(COVMAT_SZ);
 
@@ -529,7 +551,7 @@ void mvt_pdf_kernel_wrapper(Eigen::VectorXd &w,
 #pragma omp parallel for
   for (unsigned i = 0; i < N; ++i)
     for (unsigned j = 0; j < d; ++j)
-      host_x_t[i * d + j] = post_x_t[t][i][j];
+      host_pre_x_t[i * d + j] = post_x_t[t][i][j];
 
 #pragma omp parallel for
   for (unsigned i = 0; i < d; ++i)
@@ -541,7 +563,7 @@ void mvt_pdf_kernel_wrapper(Eigen::VectorXd &w,
 
   CUDA_CALL(cudaMemcpy(dev_y_t, host_y_t, INPUT_SZ, cudaMemcpyHostToDevice));
   CUDA_CALL(
-      cudaMemcpy(dev_x_t, host_x_t, PARTICLES_SZ, cudaMemcpyHostToDevice));
+      cudaMemcpy(dev_x_t, host_pre_x_t, PARTICLES_SZ, cudaMemcpyHostToDevice));
   CUDA_CALL(
       cudaMemcpy(dev_E_inv, host_E_inv, COVMAT_SZ, cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(dev_F, host_F, COVMAT_SZ, cudaMemcpyHostToDevice));
@@ -595,7 +617,7 @@ void mvt_pdf_kernel_wrapper(Eigen::VectorXd &w,
   cudaFree(dev_E_inv);
 
   free(host_w_t);
-  free(host_x_t);
+  free(host_pre_x_t);
   free(host_y_t);
   free(host_E_inv);
 }

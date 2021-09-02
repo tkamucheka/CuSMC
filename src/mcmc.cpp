@@ -41,9 +41,10 @@ void generateInput(Eigen::VectorXd *prior_x_t, Eigen::VectorXd *y_t,
   }
 }
 
-void initialize(std::string distribution_opt, Eigen::VectorXd **x_t, Eigen::VectorXd *w_t,
-                Eigen::VectorXd m0, Eigen::MatrixXd C0,
-                unsigned N, unsigned d, unsigned t, float df)
+void initialize(
+    Eigen::VectorXd **x_t, Eigen::VectorXd *w_t,
+    Eigen::VectorXd m0, Eigen::MatrixXd C0,
+    unsigned N, unsigned d, unsigned t, float df, std::string distribution_opt)
 {
   // Distributions
   Distributions["normal"] =
@@ -81,13 +82,12 @@ void initialize(std::string distribution_opt, Eigen::VectorXd **x_t, Eigen::Vect
   delete dist;
 }
 
-void propagate_K(std::string distribution_opt,
-                 Eigen::VectorXd **post_x_t,
-                 unsigned *a_t,
-                 const Eigen::MatrixXd G,
-                 const Eigen::MatrixXd Q,
-                 const dim_t N, const dim_t d,
-                 const dim_t t, const float df)
+void propagate_K(
+    Eigen::VectorXd **post_x_t, unsigned *a_t,
+    const Eigen::MatrixXd G, const Eigen::MatrixXd Q_w,
+    const dim_t N, const dim_t d, const dim_t t,
+    const float df,
+    std::string distribution_opt)
 {
   // Distributions
   Distributions["normal"] =
@@ -120,7 +120,7 @@ void propagate_K(std::string distribution_opt,
 #ifndef __GPU
 
   distParams_t params;
-  params.sigma = G;
+  params.sigma = W; // sigma = W
   params.nu = df;
 
 #pragma omp parallel for
@@ -139,12 +139,13 @@ void propagate_K(std::string distribution_opt,
 
     // Shuffle (thetas) x_t in the indices
     // and initialize new distribution
-    params.mu = post_x_t[t - 1][a_t[t * N + i]];
+    // mu = G * x
+    params.mu = G * post_x_t[t - 1][a_t[t * N + i]];
 
     StatisticalDistribution *dist = Distributions[distribution_opt](params);
 
     // Sample new (thetas) x_t
-    dist->sample(post_x_t[t][i], Q, 200);
+    dist->sample(post_x_t[t][i], Q_w, 200);
 
     delete dist;
   }
@@ -153,26 +154,31 @@ void propagate_K(std::string distribution_opt,
   distParams_t params;
   params.post_x_t = post_x_t;
   params.a_t = a_t;
-  params.sigma = G;
-  params.nu = df;
-  params.Q = Q;
+  params.sigma = W;
+  params.Q_w = Q_w;
   params.N = N;
   params.d = d;
   params.t = t;
+  params.nu = df;
 
   StatisticalDistribution *dist = Distributions[distribution_opt](params);
 
-  dist->sample(post_x_t, a_t, Q, N, d, t);
+  dist->sample(post_x_t, a_t, G, Q_w, N, d, t);
 
   delete dist;
 
 #endif
 }
 
-void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen::VectorXd *y_t,
-                Eigen::VectorXd **post_x_t, const double norm,
-                const Eigen::MatrixXd F, const Eigen::MatrixXd G, const Eigen::MatrixXd &G_inv,
-                const dim_t N, const dim_t d, const dim_t t, const float df)
+void reweight_G(
+    Eigen::VectorXd *w_t, const Eigen::VectorXd *y_t,
+    Eigen::VectorXd **post_x_t,
+    const Eigen::MatrixXd &F,
+    const Eigen::MatrixXd &V_det,
+    const Eigen::MatrixXd &V_inv,
+    const dim_t N, const dim_t d, const dim_t t,
+    const float df,
+    std::string distributions_opt)
 {
   // Distributions
   Distributions["normal"] =
@@ -188,8 +194,8 @@ void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen
 #ifndef __GPU
 
   distParams_t params;
-  params.sigma = G;
-  params.sigma_inv = G_inv;
+  params.sigma_det = V_det; // V matrix determinant
+  params.sigma_inv = V_inv; // V matrix inverse
   params.nu = df;
 
 #pragma omp parallel for
@@ -205,14 +211,14 @@ void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen
     // `distOptions` object because different distribution may functin with
     // different sets of parameters.
 
-    // Initialize MVN distribution
+    // Initialize distribution
     // mean  = x[t], covariance matrix sigma = E
-    params.mu = post_x_t[t][i];
+    params.mu = F * post_x_t[t][i];
 
     StatisticalDistribution *dist = Distributions[distributions_opt](params);
 
     // Get new weights from probality density function
-    w_t[t][i] = dist->pdf(y_t[t], F);
+    w_t[t][i] = dist->pdf(y_t[t]);
 
     delete dist;
   }
@@ -222,8 +228,9 @@ void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen
   distParams_t params;
   params.post_x_t = post_x_t;
   params.a_t = a_t;
-  params.sigma = G;
-  params.sigma_inv = G_inv;
+  params.sigma = V;
+  params.sigma_det = V_det;
+  params.sigma_inv = V_inv;
   params.df = df;
   params.Q = Q;
   params.N = N;
@@ -239,10 +246,15 @@ void reweight_G(std::string distributions_opt, Eigen::VectorXd *w_t, const Eigen
 #endif
 }
 
-void MCMC(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
-          Eigen::VectorXd *y_t, Eigen::MatrixXd &F, Eigen::MatrixXd &G,
-          const dim_t N, const dim_t d, const dim_t timeSteps,
-          std::string resampler_opt, std::string distribution_opt, const float df)
+void MCMC(
+    Eigen::VectorXd **post_x_t,
+    Eigen::VectorXd *w_t, unsigned *a_t,
+    Eigen::VectorXd *y_t,
+    const Eigen::MatrixXd &F, const Eigen::MatrixXd &G,
+    const Eigen::matrixXd &V, const Eigen::MatrixXd &W,
+    const dim_t N, const dim_t d, const dim_t timeSteps, const float df,
+    std::string resampler_opt,
+    std::string distribution_opt)
 {
   // Initialize Resamplers and Distributions
   // Resamplers;
@@ -270,18 +282,20 @@ void MCMC(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
 
   // Solve Covariant Matrix for determinant & inverse
   //double E_det = E.determinant();
-  Eigen::MatrixXd G_inv = G.inverse();
-  Eigen::MatrixXd Q(d, d);
-  eigenSolver(Q, G);
+  Eigen::MatrixXd V_det = V.determinant();
+  Eigen::MatrixXd V_inv = V.inverse();
+  Eigen::MatrixXd Q_w(d, d);
+  eigenSolver(Q_w, W);
 
+  // BUG: norm changes with each timestep
   // Get norm from distribution
-  distParams_t params;
-  params.mu = Eigen::VectorXd::Zero(d);
-  params.sigma = G;
-  params.nu = df;
+  // distParams_t params;
+  // params.mu = Eigen::VectorXd::Zero(d);
+  // params.sigma = G;
+  // params.nu = df;
 
-  StatisticalDistribution *dist = Distributions[distribution_opt](params);
-  double norm = dist->getNorm();
+  // StatisticalDistribution *dist = Distributions[distribution_opt](params);
+  // double norm = dist->getNorm();
 
   int B = 10;
   for (unsigned t = 1; t < timeSteps; ++t)
@@ -290,17 +304,28 @@ void MCMC(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
     resampler(a_t, w_t, N, t, B);
 
     // Propagate particles
-    propagate_K(distribution_opt, post_x_t, a_t, G, Q, N, d, t, df);
+    propagate_K(post_x_t, a_t,
+                G, Q_w,
+                N, d, t, df,
+                distribution_opt);
 
     // Resample weights
-    reweight_G(distribution_opt, w_t, y_t, post_x_t, norm, F, G, G_inv, N, d, t, df);
+    reweight_G(w_t, y_t, post_x_t,
+               F, V_det, V_inv,
+               N, d, t, df,
+               distribution_opt);
   }
 }
 
-void MCMC_step(Eigen::VectorXd **post_x_t, Eigen::VectorXd *w_t, unsigned *a_t,
-               Eigen::VectorXd *y_t, Eigen::MatrixXd &E, Eigen::MatrixXd &F,
-               const dim_t N, const dim_t d, const dim_t timeSteps,
-               std::string resampler_opt, std::string distribution_opt, const float df)
+void MCMC_step(
+    Eigen::VectorXd **post_x_t,
+    Eigen::VectorXd *w_t, unsigned *a_t,
+    Eigen::VectorXd *y_t,
+    const Eigen::MatrixXd &F, const Eigen::MatrixXd &G,
+    const Eigen::matrixXd &V, const Eigen::MatrixXd &W,
+    const dim_t N, const dim_t d, const dim_t timeSteps, const float df,
+    std::string resampler_opt,
+    std::string distribution_opt)
 {
   // Initialize Resamplers and Distributions
   // Resamplers;
