@@ -8,29 +8,38 @@ void writeOutput(Eigen::VectorXd(*y_t), Eigen::VectorXd(*w_t),
                  Eigen::VectorXd(**post_x_t), const dim_t N, 
                  const dim_t d, const dim_t timeSteps, dim_t p)
 {
+  /* 
+    Export output to files,
+      y_t.csv: input files, contains y0,y1,..,y(d-1)
+      x_t_N[p].csv: output files, contains, 
+  */
+  std::cout << "\nWriting output!\n";
   std::ofstream file_y_time1_csv("y_t.csv");
   std::ofstream file_x_time1_csv("x_t_N" + std::to_string(p) + ".csv");
-  file_y_time1_csv << "y0,y1,w" << std::endl;
-  file_x_time1_csv << "x0,x1,w" << std::endl;
+  file_y_time1_csv << "y" << std::endl;
+  file_x_time1_csv << "w,x" << std::endl;
 
 
-  for (unsigned i = 0; i < timeSteps; ++i)
+  for (unsigned i = 0; i < timeSteps; i++)
   {
-    file_y_time1_csv << y_t[i][0] << "," << y_t[i][1] 
-                     << std::endl;
-    file_x_time1_csv << post_x_t[i][p][0] << "," << post_x_t[i][p][1]
-                     << "," << w_t[i][0] << std::endl;
+    file_x_time1_csv << w_t[i][0];
+    for (unsigned int j=0; j < d ; j++) {
+      file_y_time1_csv << y_t[i][j] << ",";
+      file_x_time1_csv << "," << post_x_t[i][p][j];     
+    }
+    file_y_time1_csv << std::endl;
+    file_x_time1_csv << std::endl;
   }
 
-  std::ofstream file_x_theta1_csv("x_t1.csv");
-  file_x_theta1_csv << "x_t" << std::endl;
+  // std::ofstream file_x_theta1_csv("x_t1.csv");
+  // file_x_theta1_csv << "x_t" << std::endl;
 
-  int time = 1;
-  for (unsigned i = 0; i < N; ++i)
-  {
-    file_x_theta1_csv << post_x_t[time][i][0] << "," << post_x_t[time][i][1]
-                      << std::endl;
-  }
+  // int time = 1;
+  // for (unsigned i = 0; i < N; ++i)
+  // {
+  //   file_x_theta1_csv << post_x_t[time][i][0] << "," << post_x_t[time][i][1]
+  //                     << std::endl;
+  // }
 }
 
 void writeOutput_ysim(Eigen::VectorXd(*prior_x_t), Eigen::VectorXd(*y_t),

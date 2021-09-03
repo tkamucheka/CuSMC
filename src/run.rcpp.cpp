@@ -181,6 +181,8 @@ List sim(unsigned &N, unsigned &d, unsigned &timeSteps,
   return ret;
 }
 */
+
+/*
 //' Simulations step
 //'
 //' @param N            [integer]: Number of particles is solution.
@@ -243,3 +245,4 @@ List step(unsigned &N, unsigned &d, unsigned &timeSteps,
 
   return ret;
 }
+*/

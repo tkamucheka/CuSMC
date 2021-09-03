@@ -8,8 +8,8 @@ void particle_filter(
     Eigen::VectorXd *w_t, unsigned *a_t,
     Eigen::VectorXd *y_t,
     Eigen::MatrixXd F, Eigen::MatrixXd G,
-    Eigen::MatrixXd V, Eigen::MatrixXd W,
     Eigen::VectorXd m0, Eigen::MatrixXd C0,
+    Eigen::MatrixXd V, Eigen::MatrixXd W,
     dim_t N, dim_t d, dim_t timeSteps,
     float df,
     std::string resampler_opt,
@@ -38,6 +38,7 @@ void particle_filter(
   Rcpp::Rcout << "Done. " << elapsedTime(timer) << " s" << std::endl;
 }
 
+/*
 void particle_filter_step(Eigen::VectorXd **post_x_t,
                           Eigen::VectorXd *w_t, unsigned *a_t,
                           Eigen::VectorXd *y_t,
@@ -57,5 +58,5 @@ void particle_filter_step(Eigen::VectorXd **post_x_t,
   runtime = elapsedTime(timer);
   Rcpp::Rcout << "Done. " << elapsedTime(timer) << " s" << std::endl;
 }
-
+*/
 #endif

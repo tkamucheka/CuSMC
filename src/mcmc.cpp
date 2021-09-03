@@ -3,6 +3,24 @@
 
 #include <mcmc.hpp>
 
+Eigen::MatrixXd eigenSolverQ(const Eigen::MatrixXd Cov)
+{
+  /*
+    This function returns sqrt(eigenValue)*eigenvector for sampling,
+    based on Central Limit Theorem
+  */
+  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigen_solver(Cov);
+  Eigen::MatrixXd eigenvectors = eigen_solver.eigenvectors().real();
+
+  // Find the eigenvalues of the covariance matrix
+  Eigen::MatrixXd eigenvalues = eigen_solver.eigenvalues().real().asDiagonal();
+
+  // Find the transformation matrix
+  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(eigenvalues);
+  Eigen::MatrixXd sqrt_eigenvalues = es.operatorSqrt();
+  return eigenvectors * sqrt_eigenvalues;
+}
+
 void generateInput(Eigen::VectorXd *prior_x_t, Eigen::VectorXd *y_t,
                    Eigen::MatrixXd &F, Eigen::MatrixXd &G, Eigen::MatrixXd &I_1,
                    Eigen::MatrixXd &I_2, dim_t N, dim_t d, dim_t timeSteps)
@@ -65,9 +83,8 @@ void initialize(
   params.sigma = C0;
   params.nu = df;
 
-  // Solve Covariant Matrix for determinant & inverse
-  Eigen::MatrixXd Q(d, d);
-  eigenSolver(Q, C0);
+  // Get Q
+  Eigen::MatrixXd Q = eigenSolverQ(C0);
 
   StatisticalDistribution *dist = Distributions[distribution_opt](params);
 
@@ -84,7 +101,8 @@ void initialize(
 
 void propagate_K(
     Eigen::VectorXd **post_x_t, unsigned *a_t,
-    const Eigen::MatrixXd G, const Eigen::MatrixXd Q_w,
+    const Eigen::MatrixXd G, const Eigen::MatrixXd W,
+    const Eigen::MatrixXd Q_w,
     const dim_t N, const dim_t d, const dim_t t,
     const float df,
     std::string distribution_opt)
@@ -143,7 +161,6 @@ void propagate_K(
     params.mu = G * post_x_t[t - 1][a_t[t * N + i]];
 
     StatisticalDistribution *dist = Distributions[distribution_opt](params);
-
     // Sample new (thetas) x_t
     dist->sample(post_x_t[t][i], Q_w, 200);
 
@@ -173,8 +190,8 @@ void propagate_K(
 void reweight_G(
     Eigen::VectorXd *w_t, const Eigen::VectorXd *y_t,
     Eigen::VectorXd **post_x_t,
-    const Eigen::MatrixXd &F,
-    const Eigen::MatrixXd &V_det,
+    const Eigen::MatrixXd &F, const Eigen::MatrixXd &V,
+    const double &V_det,
     const Eigen::MatrixXd &V_inv,
     const dim_t N, const dim_t d, const dim_t t,
     const float df,
@@ -196,7 +213,10 @@ void reweight_G(
   distParams_t params;
   params.sigma_det = V_det; // V matrix determinant
   params.sigma_inv = V_inv; // V matrix inverse
+  params.mu = Eigen::VectorXd::Zero(d); // mean matrix = 0
+  params.sigma = V; // Cov matrix SigmaV
   params.nu = df;
+  //StatisticalDistribution *dist = Distributions[distributions_opt](params);
 
 #pragma omp parallel for
   for (unsigned i = 0; i < N; ++i)
@@ -212,13 +232,12 @@ void reweight_G(
     // different sets of parameters.
 
     // Initialize distribution
-    // mean  = x[t], covariance matrix sigma = E
-    params.mu = post_x_t[t][i];
-
-    StatisticalDistribution *dist = Distributions[distributions_opt](params);
+    // mean = 0, covariance matrix sigma = V
+    // params.mu = post_x_t[t][i];
 
     // Get new weights from probality density function
-    w_t[t][i] = dist->pdf(y_t[t], F);
+    StatisticalDistribution *dist = new MultiVariateNormalDistribution(params.mu, params.sigma);
+    w_t[t][i] = dist->pdf(y_t[t]-F*post_x_t[t][i], V);
 
     delete dist;
   }
@@ -251,7 +270,7 @@ void MCMC(
     Eigen::VectorXd *w_t, unsigned *a_t,
     Eigen::VectorXd *y_t,
     const Eigen::MatrixXd &F, const Eigen::MatrixXd &G,
-    const Eigen::matrixXd &V, const Eigen::MatrixXd &W,
+    const Eigen::MatrixXd V, const Eigen::MatrixXd W,
     const dim_t N, const dim_t d, const dim_t timeSteps, const float df,
     std::string resampler_opt,
     std::string distribution_opt)
@@ -279,14 +298,12 @@ void MCMC(
   // assert(Distributions.find(distribution_opt) != Distributions.end());
 
   resampler_f resampler = Resamplers[resampler_opt];
-
   // Solve Covariant Matrix for determinant & inverse
   //double E_det = E.determinant();
-  Eigen::MatrixXd V_det = V.determinant();
+  double V_det = V.determinant();
+  if (V_det == 0 ) Rcpp::Rcout << "The Covariance matrix SigmaV is singular\n" << std::endl;
   Eigen::MatrixXd V_inv = V.inverse();
-  Eigen::MatrixXd Q_w(d, d);
-  eigenSolver(Q_w, W);
-
+  Eigen::MatrixXd Q_w = eigenSolverQ(W);
   // BUG: norm changes with each timestep
   // Get norm from distribution
   // distParams_t params;
@@ -305,13 +322,13 @@ void MCMC(
 
     // Propagate particles
     propagate_K(post_x_t, a_t,
-                G, Q_w,
+                G, W, Q_w,
                 N, d, t, df,
                 distribution_opt);
 
     // Resample weights
     reweight_G(w_t, y_t, post_x_t,
-               F, V_det, V_inv,
+               F, V, V_det, V_inv,
                N, d, t, df,
                distribution_opt);
   }

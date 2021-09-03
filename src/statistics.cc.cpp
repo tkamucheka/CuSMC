@@ -173,11 +173,12 @@ double MultiVariateNormalDistribution::pdf(
     const Eigen::VectorXd &y,
     const Eigen::MatrixXd &F) const
 {
+  Rcpp::Rcout << "I was called\n";
   unsigned int n = mu.rows();
-  double sqrt2pi = std::sqrt(2 * M_PI);
+  //double sqrt2pi = std::sqrt(2 * M_PI);
   // can eliminate 1 / root(2pi)^d
-  double norm = 1 / (std::pow(sqrt2pi, n) *
-                     std::pow(sigma_det, 0.5));
+  double norm = 1 / (std::pow(sigma.determinant(), 0.5)); //* 1 / (std::pow(sqrt2pi, n)
+                     
 
   Eigen::VectorXd y_Fmu = y - (F * mu);
   double quadform = y_Fmu.transpose() * sigma.inverse() * y_Fmu;

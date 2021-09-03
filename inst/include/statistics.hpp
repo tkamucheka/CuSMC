@@ -26,7 +26,7 @@ struct distParams_t
   unsigned *a_t;
   Eigen::VectorXd mu;
   Eigen::MatrixXd sigma;
-  Eigen::matrixXd sigma_det;
+  double sigma_det;
   Eigen::MatrixXd sigma_inv;
   float nu = 0.0f;
   Eigen::MatrixXd Q;
