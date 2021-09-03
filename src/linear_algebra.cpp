@@ -3,6 +3,10 @@
 
 #include <linear_algebra.hpp>
 
+/*
+  This function returns sqrt(eigenValue)*eigenvector for sampling,
+  based on Central Limit Theorem
+*/
 void eigenSolver(Eigen::MatrixXd &I_sol, Eigen::MatrixXd &sigma)
 {
   // Find the eigen vectors of the covariance matrix

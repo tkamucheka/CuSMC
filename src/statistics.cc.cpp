@@ -299,7 +299,8 @@ double MultiVariateTStudentDistribution::pdf(
   // Bug: Missing F matrix
   // double quadform1 = (x - mu).transpose() * sigma.inverse() * (x - mu);
   Eigen::VectorXd y_Fmu = y - (F * mu);
-  double quadform1 = y_Fmu.transpose() * sigma.inverse() * y_Fmu;
+  double quadform1 = y_Fmu.transpose() * sigma.inverse() * 
+  y_Fmu;
   double quadform = 1.0f + std::pow(nu, -1) * quadform1;
 
   return (norm1 * norm2) * std::pow(quadform, (-0.5 * (nu + n)));

@@ -3,24 +3,6 @@
 
 #include <mcmc.hpp>
 
-Eigen::MatrixXd eigenSolverQ(const Eigen::MatrixXd Cov)
-{
-  /*
-    This function returns sqrt(eigenValue)*eigenvector for sampling,
-    based on Central Limit Theorem
-  */
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigen_solver(Cov);
-  Eigen::MatrixXd eigenvectors = eigen_solver.eigenvectors().real();
-
-  // Find the eigenvalues of the covariance matrix
-  Eigen::MatrixXd eigenvalues = eigen_solver.eigenvalues().real().asDiagonal();
-
-  // Find the transformation matrix
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(eigenvalues);
-  Eigen::MatrixXd sqrt_eigenvalues = es.operatorSqrt();
-  return eigenvectors * sqrt_eigenvalues;
-}
-
 void generateInput(Eigen::VectorXd *prior_x_t, Eigen::VectorXd *y_t,
                    Eigen::MatrixXd &F, Eigen::MatrixXd &G, Eigen::MatrixXd &I_1,
                    Eigen::MatrixXd &I_2, dim_t N, dim_t d, dim_t timeSteps)
@@ -84,7 +66,7 @@ void initialize(
   params.nu = df;
 
   // Get Q
-  Eigen::MatrixXd Q = eigenSolverQ(C0);
+  eigenSolver(Q, C0);
 
   StatisticalDistribution *dist = Distributions[distribution_opt](params);
 
@@ -303,7 +285,7 @@ void MCMC(
   double V_det = V.determinant();
   if (V_det == 0 ) Rcpp::Rcout << "The Covariance matrix SigmaV is singular\n" << std::endl;
   Eigen::MatrixXd V_inv = V.inverse();
-  Eigen::MatrixXd Q_w = eigenSolverQ(W);
+  eigenSolver(Q_w, W);
   // BUG: norm changes with each timestep
   // Get norm from distribution
   // distParams_t params;
