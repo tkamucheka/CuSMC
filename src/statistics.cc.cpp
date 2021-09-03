@@ -169,21 +169,34 @@ MultiVariateNormalDistribution *MultiVariateNormalDistribution::getInstance(cons
 }
 
 // Distribution functions
-double MultiVariateNormalDistribution::pdf(
-    const Eigen::VectorXd &y,
-    const Eigen::MatrixXd &F) const
+double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y) const
 {
   Rcpp::Rcout << "I was called\n";
   unsigned int n = mu.rows();
   //double sqrt2pi = std::sqrt(2 * M_PI);
-  // can eliminate 1 / root(2pi)^d
-  double norm = 1 / (std::pow(sigma.determinant(), 0.5)); //* 1 / (std::pow(sqrt2pi, n)
+  // can eliminate 1 / root(2pi)^d, and sigma.det() as sigma always be V
+  double norm = 1; // (std::pow(sigma.determinant(), 0.5)) * 1 / (std::pow(sqrt2pi, n) 
+                     
+  double quadform = y.transpose() * sigma.inverse() * y;
+
+  return quadform;//norm * exp(-0.5 * quadform);
+}
+
+// Distribution functions
+double MultiVariateNormalDistribution::pdf(
+    const Eigen::VectorXd &y,
+    const Eigen::MatrixXd &F) const
+{
+  unsigned int n = mu.rows();
+  //double sqrt2pi = std::sqrt(2 * M_PI);
+  // can eliminate 1 / root(2pi)^d, and sigma.det() as sigma always be V
+  double norm = 1; // (std::pow(sigma.determinant(), 0.5)) * 1 / (std::pow(sqrt2pi, n) 
                      
 
   Eigen::VectorXd y_Fmu = y - (F * mu);
   double quadform = y_Fmu.transpose() * sigma.inverse() * y_Fmu;
 
-  return norm * exp(-0.5 * quadform);
+  return quadform;//norm * exp(-0.5 * quadform);
 }
 
 double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y,

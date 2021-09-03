@@ -50,6 +50,7 @@ public:
   // Distribution functions
   // Probability Density Function
   virtual double pdf(const double &x) const { return 0.0f; }
+  virtual double pdf(const Eigen::VectorXd &x) const { return 0.0f; }
   virtual double pdf(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const { return 0.0f; }
   virtual double getNorm() const { return 0.0f; }
   // Cumulative Distribution Function
@@ -137,6 +138,7 @@ public:
 
   // Distribution functions
   Eigen::VectorXd pdf_cu(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const;
+  double pdf(const Eigen::VectorXd &x) const;
   double pdf(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const;
   double pdf(const Eigen::VectorXd &y,
              const Eigen::VectorXd &x,

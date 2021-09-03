@@ -236,8 +236,8 @@ void reweight_G(
     // params.mu = post_x_t[t][i];
 
     // Get new weights from probality density function
-    StatisticalDistribution *dist = new MultiVariateNormalDistribution(params.mu, params.sigma);
-    w_t[t][i] = dist->pdf(y_t[t]-F*post_x_t[t][i], V);
+    StatisticalDistribution *dist = Distributions[distributions_opt](params);
+    w_t[t][i] = dist->pdf(y_t[t]-F*post_x_t[t][i]);
 
     delete dist;
   }
