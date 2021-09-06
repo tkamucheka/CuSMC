@@ -7,7 +7,7 @@
   This function returns sqrt(eigenValue)*eigenvector for sampling,
   based on Central Limit Theorem
 */
-void eigenSolver(Eigen::MatrixXd &I_sol, Eigen::MatrixXd &sigma)
+void eigenSolver(Eigen::MatrixXd &I_sol, const Eigen::MatrixXd &sigma)
 {
   // Find the eigen vectors of the covariance matrix
   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigen_solver(sigma);

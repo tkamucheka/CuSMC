@@ -66,6 +66,8 @@ void initialize(
   params.nu = df;
 
   // Get Q
+  const unsigned int rC = C0.rows(); //d
+  Eigen::MatrixXd Q(rC,rC);
   eigenSolver(Q, C0);
 
   StatisticalDistribution *dist = Distributions[distribution_opt](params);
@@ -285,6 +287,8 @@ void MCMC(
   double V_det = V.determinant();
   if (V_det == 0 ) Rcpp::Rcout << "The Covariance matrix SigmaV is singular\n" << std::endl;
   Eigen::MatrixXd V_inv = V.inverse();
+  const unsigned int rW = W.rows();
+  Eigen::MatrixXd Q_w(rW,rW);
   eigenSolver(Q_w, W);
   // BUG: norm changes with each timestep
   // Get norm from distribution

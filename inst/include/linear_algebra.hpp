@@ -6,6 +6,6 @@
 #include <RcppEigen.h>
 
 // Eigen Solver
-void eigenSolver(Eigen::MatrixXd &I_sol, Eigen::MatrixXd &sigma);
+void eigenSolver(Eigen::MatrixXd &I_sol, const Eigen::MatrixXd &sigma);
 
 #endif

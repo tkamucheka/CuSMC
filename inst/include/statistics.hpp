@@ -71,7 +71,7 @@ public:
   virtual void sample(Eigen::VectorXd &dist_draws,
                       const unsigned int n_iterations) const {};
   virtual void sample(Eigen::VectorXd &dist_draws,
-                      const Eigen::VectorXd &x,
+                      const Eigen::MatrixXd &x,
                       const unsigned int n_iterations) const {};
 };
 
@@ -156,7 +156,7 @@ public:
 
   // Random draw function
   void sample(Eigen::VectorXd &dist_draws,
-              const Eigen::MatrixXd Q,
+              const Eigen::MatrixXd &Q,
               const unsigned int n_iterations) const;
 };
 
