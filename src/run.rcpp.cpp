@@ -3,6 +3,7 @@
 #pragma clang diagnostic ignored "-Wunknown-pragmas"
 
 // we only include RcppEigen.h which pulls Rcpp.h in for us
+#include <RcppArmadillo.h>
 #include <RcppEigen.h>
 #include <functional>
 #include <map>
@@ -20,6 +21,7 @@ using namespace Rcpp;
 // RcppEigen so that the build process will know what to do
 //
 // [[Rcpp::depends(RcppEigen)]]
+// [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::plugins(openmp)]]
 
 struct env_t
@@ -100,15 +102,23 @@ List run(unsigned &N, unsigned &d, unsigned &timeSteps,
       N, ENV.d, ENV.timeSteps, runtime, resampler, distribution, ENV.df);
   writeOutput(ENV.y_t, w_t, post_x_t, N, ENV.d, ENV.timeSteps, p);
 
-  // Build return object list
-  // https://stackoverflow.com/questions/3088650/how-do-i-create-a-list-of-vectors-in-rcpp
+  // Convert Eigen::VectorXd *w_t to Rcpp::NumericMatrix w
+  Rcpp::NumericMatrix w(timeSteps,N);
+  for (int i = 0; i < timeSteps; i++) {
+    SEXP s = Rcpp::wrap(w_t[i]);
+    Rcpp::NumericVector v(s);
+    w(i,_) = v;
+  }
 
-  List ret;
-  // ret["ancestors"] = a_t;
-  // ret["weights"] = w_t;
-  // ret["posterior_x"] = post_x_t;
+  // Convert Eigen::VectorXd **post_x_t to arma::cube theta
+  arma::cube theta = arma::cube(timeSteps, N, d);
+  for (arma::uword i = 0; i < theta.n_rows; ++i)
+    for (arma::uword j = 0; j < theta.n_cols; ++j)
+      for (arma::uword k = 0 ; k < theta.n_slices; ++k) 
+        theta(i,j,k)= post_x_t[i][j][k];
 
-  return ret;
+  return Rcpp::List::create(Rcpp::Named("weights") = w,
+                            Rcpp::Named("posterior_x") = theta);
 }
 /*
 //' Simulations sim: y_t is generated
