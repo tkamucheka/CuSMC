@@ -1,10 +1,9 @@
 #ifndef __GPU
 
-#ifndef __STATISTICS_CPP
-#define __STATISTICS_CPP
+#ifndef __STATISTICS_CC_CPP
+#define __STATISTICS_CC_CPP
 
 #include "../inst/include/statistics.hpp"
-#include "../inst/include/distributions/mvn_dist.hpp"
 
 // Base class constructor/destructor
 // StatisticalDistribution::StatisticalDistribution() {}
@@ -196,17 +195,17 @@ double MultiVariateNormalDistribution::pdf(
   return norm * exp(-0.5 * quadform);
 }
 
-double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y,
-                                           const Eigen::VectorXd &x,
-                                           const Eigen::MatrixXd &E) const
-{
-  unsigned int n = x.rows();
-  double sqrt2pi = std::sqrt(2 * M_PI);
-  double norm = 1 / (std::pow(sqrt2pi, n) * std::pow(E.determinant(), 0.5));
-  double quadform = (y - x).transpose() * E.inverse() * (y - x);
+// double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y,
+//                                            const Eigen::VectorXd &x,
+//                                            const Eigen::MatrixXd &E) const
+// {
+//   unsigned int n = x.rows();
+//   double sqrt2pi = std::sqrt(2 * M_PI);
+//   double norm = 1 / (std::pow(sqrt2pi, n) * std::pow(E.determinant(), 0.5));
+//   double quadform = (y - x).transpose() * E.inverse() * (y - x);
 
-  return norm * exp(-0.5 * quadform);
-}
+//   return norm * exp(-0.5 * quadform);
+// }
 
 //Calculate constant norm
 double MultiVariateNormalDistribution::getNorm() const
@@ -303,12 +302,19 @@ double MultiVariateTStudentDistribution::pdf(
   return (norm1 * norm2) * std::pow(quadform, (-0.5 * (nu + n)));
 }
 
-double MultiVariateTStudentDistribution::pdf(const Eigen::VectorXd &y,
-                                             const Eigen::VectorXd &x,
-                                             const Eigen::MatrixXd &E) const
+double MultiVariateTStudentDistribution::pdf(const Eigen::VectorXd &y) const // mu = vector O
 {
-  return 0.0f;
+  unsigned n = mu.rows();
+  double pixdf = M_PI * nu;
+  double norm1 = std::pow(pixdf, (-0.5 * n)) * std::pow(sigma.determinant(), -0.5);
+  double norm2 = tgamma(0.5 * (nu + n)) / tgamma(0.5 * nu);
+
+  double quadform1 = y.transpose() * sigma.inverse() * y;
+  double quadform = 1.0f + std::pow(nu, -1) * quadform1;
+
+  return (norm1 * norm2) * std::pow(quadform, (-0.5 * (nu + n)));
 }
+
 
 //Calculate constant norm
 double MultiVariateTStudentDistribution::getNorm() const

@@ -21,6 +21,9 @@
 #define _USE_MATH_DEFINES
 #endif
 
+typedef std::function<StatisticalDistribution *(distParams_t)> distributionCreator_f;
+typedef std::map<std::string, distributionCreator_f> distributions_t;
+
 static resamplers_t Resamplers;
 static distributions_t Distributions;
 

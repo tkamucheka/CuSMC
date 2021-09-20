@@ -28,8 +28,7 @@ using namespace Rcpp;
 //' sigma = matrix(c(1, 0, 0, 1), nrow = 2)
 //' CuSMC::MVN(mu, sigma)
 // [[Rcpp::export]]
-Eigen::VectorXd
-MVN(Eigen::VectorXd mu, Eigen::MatrixXd sigma)
+Eigen::VectorXd MVN(Eigen::VectorXd mu, Eigen::MatrixXd sigma)
 {
   Eigen::VectorXd draws(mu.rows());
   MultiVariateNormalDistribution MVN(mu, sigma);

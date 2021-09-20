@@ -50,9 +50,11 @@ MVT <- function(mu, sigma, nu) {
 
 #' MultiVariate T Probability Density Function
 #'
+#' @param x             [vector]: x.
 #' @param mu            [vector]: Location vector.
 #' @param sigma         [matrix]: Dispersion matrix.
-#' @param nu             [float]: degrees of freedom.
+#' @param nu            [float]: degrees of freedom.
+#' @return              [numeric]: Real value
 #' @export
 MVTPDF <- function(x, mu, sigma, nu) {
     .Call('_CuSMC_MVTPDF', PACKAGE = 'CuSMC', x, mu, sigma, nu)

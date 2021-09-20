@@ -1,14 +1,14 @@
 #ifdef __GPU
 
-#ifndef __STATISTICS_CPP
-#define __STATISTICS_CPP
+#ifndef __STATISTICS_CU_CPP
+#define __STATISTICS_CU_CPP
 
 #include "../inst/include/statistics.hpp"
 #include "../inst/include/distributions/mvn_dist.hpp"
 
 // Base class constructor/destructor
-// StatisticalDistribution::StatisticalDistribution() {}
-// StatisticalDistribution::~StatisticalDistribution() {}
+StatisticalDistribution::StatisticalDistribution() {}
+//StatisticalDistribution::~StatisticalDistribution() {}
 
 // Standard Normal Distribution ===============================================
 
@@ -159,57 +159,59 @@ MultiVariateNormalDistribution::MultiVariateNormalDistribution(const Eigen::Vect
   mu = m;
   sigma = s;
 }
-MultiVariateNormalDistribution::~MultiVariateNormalDistribution(){};
+MultiVariateNormalDistribution::~MultiVariateNormalDistribution(){}
 
 // Return class instance
-MultiVariateNormalDistribution *MultiVariateNormalDistribution::getInstance(const distParams_t params)
+MultiVariateNormalDistribution * MultiVariateNormalDistribution::getInstance(const distParams_t params)
 {
   // MultiVariateNormalDistribution MVN(mu, sigma);
-  MultiVariateNormalDistribution MVN = new MultiVariateNormalDistribution(params.mu, params.sigma);
+  MultiVariateNormalDistribution * MVN = new MultiVariateNormalDistribution(params.mu, params.sigma);
   MVN->params = params;
 
   return MVN;
 }
 
-// Distribution functions
-Eigen::VectorXd MultiVariateNormalDistribution::pdf_cu(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const
+// Distribution functions pdf_cu
+Eigen::VectorXd MultiVariateNormalDistribution::pdf_cu(const Eigen::VectorXd *y, const Eigen::VectorXd **post_x_t, const Eigen::MatrixXd &F) const
 {
   // unsigned int n = mu.rows();
   // double sqrt2pi = std::sqrt(2 * M_PI);
-  double norm = this->getNorm();
-
+  const double norm = this->getNorm();
+  const Eigen::MatrixXd sigma_inv = this->sigma.inverse();
   Eigen::VectorXd w = Eigen::VectorXd::Zero(this->params.N);
-  mvn_pdf_kernel_wrapper(w, y, mu, sigma_inv, F, norm,
+  mvn_pdf_kernel_wrapper(w, y, post_x_t, norm, sigma_inv, F,
                          this->params.N, this->params.d, this->params.t);
 
   // DEBUG:
   // Rcpp::Rcout << "PDF: " << w << std::endl;
 
   return w;
-};
+}
 
-double MultiVariateNormalDistribution::pdf() {}
+// double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const {
+//   return 0.0;
+// }
+
 
 //Calculate constant norm
-double
-MultiVariateNormalDistribution::getNorm() const
+double MultiVariateNormalDistribution::getNorm() const
 {
   int n = this->mu.rows();
 
   double sqrt2pi = std::sqrt(2 * M_PI);
   return 1.0f / (std::pow(sqrt2pi, n) *
-                 std::pow(sigma_det, 0.5));
+                 std::pow(this->sigma.determinant(), 0.5));
 }
 
-double MultiVariateNormalDistribution::cdf() const { return 0.0f; };
+double MultiVariateNormalDistribution::cdf() const { return 0.0f; }
 
 // Inverse cumulative distribution function
-double MultiVariateNormalDistribution::inv_cdf(const double &quantile) const { return 0.0f; };
+double MultiVariateNormalDistribution::inv_cdf(const double &quantile) const { return 0.0f; }
 
 // Descriptive stats
-Eigen::VectorXd MultiVariateNormalDistribution::mean() const { return mu; };
-// Eigen::VectorXd MultiVariateNormalDistribution::var() const { return mu; };
-Eigen::VectorXd MultiVariateNormalDistribution::stdev() const { return sigma; };
+Eigen::VectorXd MultiVariateNormalDistribution::mean() const { return mu; }
+// Eigen::VectorXd MultiVariateNormalDistribution::var() const { return mu; }
+Eigen::VectorXd MultiVariateNormalDistribution::stdev() const { return sigma; }
 
 // Random draw function
 void MultiVariateNormalDistribution::sample(
@@ -222,7 +224,7 @@ void MultiVariateNormalDistribution::sample(
     const dim_t t)
 {
   mvn_sample_kernel_wrapper(post_x_t, a_t, G, Q, N, d, t);
-};
+}
 
 // Multi-Variate T Student Distribution ====================================
 
@@ -232,10 +234,10 @@ MultiVariateTStudentDistribution::MultiVariateTStudentDistribution(
     const float &nu)
 {
   this->mu = m;    //location vector
-  this->sigma = s; //scale matrix
+  this->sigma = s; //scale matrixs
   this->nu = nu;   //degree of freedom
-};
-MultiVariateTStudentDistribution::~MultiVariateTStudentDistribution(){};
+}
+MultiVariateTStudentDistribution::~MultiVariateTStudentDistribution(){}
 
 // Return class instance
 MultiVariateTStudentDistribution *MultiVariateTStudentDistribution::getInstance(const distParams_t params)
@@ -244,62 +246,64 @@ MultiVariateTStudentDistribution *MultiVariateTStudentDistribution::getInstance(
   return new MultiVariateTStudentDistribution(params.mu, params.sigma, params.nu);
 }
 
-// Distribution functions
-Eigen::VectorXd MultiVariateTStudentDistribution::pdf_cu(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const
-{
-  double norm = this->getNorm();
-
-  Eigen::VectorXd w = Eigen::VectorXd::Zero(this->params.N);
-  mvt_pdf_kernel_wrapper(w, y, mu, sigma_inv, F, norm,
-                         this->params.N, this->params.d, this->params.t,
-                         df);
-
-  // DEBUG:
-  // Rcpp::Rcout << "PDF: " << w << std::endl;
-
-  return w;
-};
-
-double MultiVariateTStudentDistribution::pdf(const Eigen::VectorXd &y,
-                                             const Eigen::VectorXd &x,
-                                             const Eigen::MatrixXd &E) const
-{
-  return 0.0f;
-};
-
 //Calculate constant norm
 double MultiVariateTStudentDistribution::getNorm() const
 {
   int n = this->mu.rows();
   double pi_df = M_PI * this->nu;
-  double norm1 = std::pow(this->nu, (-0.5 * n)) * std::pow(this->sigma_det, -0.5);
+  double norm1 = std::pow(this->nu, (-0.5 * n)) * std::pow(this->sigma.determinant(), -0.5);
   double norm2 = tgamma(0.5 * (this->nu + n)) / tgamma(0.5 * this->nu);
 
   return norm1 * norm2;
-};
+}
 
-double MultiVariateTStudentDistribution::cdf() const { return 0.0f; };
+// Distribution functions pdf_cu
+Eigen::VectorXd MultiVariateTStudentDistribution::pdf_cu(const Eigen::VectorXd *y, 
+                                                         const Eigen::VectorXd **post_x_t,
+                                                         const Eigen::MatrixXd &F) const
+{
+  double norm = this->getNorm();
+  const Eigen::MatrixXd sigma_inv = this->sigma.inverse();
+  Eigen::VectorXd w = Eigen::VectorXd::Zero(this->params.N);
+  mvt_pdf_kernel_wrapper(w, y, post_x_t, sigma_inv, F, norm,
+                         this->params.N, this->params.d, this->params.t,
+                         this->nu);
+
+  // DEBUG:
+  // Rcpp::Rcout << "PDF: " << w << std::endl;
+
+  return w;
+}
+
+// double MultiVariateTStudentDistribution::pdf(const Eigen::VectorXd &y,
+//                                              const Eigen::VectorXd &x,
+//                                              const Eigen::MatrixXd &E) const
+// {
+//   return 0.0f;
+// }
+
+double MultiVariateTStudentDistribution::cdf() const { return 0.0f; }
 
 // Inverse cumulative distribution function
-double MultiVariateTStudentDistribution::inv_cdf(const double &quantile) const { return 0.0f; };
+double MultiVariateTStudentDistribution::inv_cdf(const double &quantile) const { return 0.0f; }
 
 // Descriptive stats
-Eigen::VectorXd MultiVariateTStudentDistribution::mean() const { return mu; }; //note that this is location vector, not the mean vector!
+Eigen::VectorXd MultiVariateTStudentDistribution::mean() const { return mu; } //note that this is location vector, not the mean vector!
 
-Eigen::VectorXd MultiVariateTStudentDistribution::stdev() const { return sigma; }; //note that this is scale matrix, not the covarriance matrix which is df/(df-2)*sigma
+Eigen::VectorXd MultiVariateTStudentDistribution::stdev() const { return sigma; } //note that this is scale matrix, not the covarriance matrix which is df/(df-2)*sigma
 
-float MultiVariateTStudentDistribution::dfree() const { return nu; };
+float MultiVariateTStudentDistribution::dfree() const { return nu; }
 
 // Random draw function
 void MultiVariateTStudentDistribution::sample(
     Eigen::VectorXd **post_x_t,
     unsigned *a_t,
+    const Eigen::MatrixXd G,
     const Eigen::MatrixXd Q,
-    const dim_t N, const dim_t d, const dim_t t,
-    const float df) const
+    const dim_t N, const dim_t d, const dim_t t) const
 {
-  mvt_sample_kernel_wrapper(post_x_t, a_t, Q, N, d, t, df);
-};
+  mvt_sample_kernel_wrapper(post_x_t, a_t, G, Q, N, d, t, this->nu);
+}
 
 #endif
 

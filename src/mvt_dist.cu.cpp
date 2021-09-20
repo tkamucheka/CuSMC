@@ -1,13 +1,14 @@
 #ifdef __GPU
 
-#ifndef __MVT_CPP
-#define __MVT_CPP
+#ifndef __MVT_CU_CPP
+#define __MVT_CU_CPP
 
-#include <distributions/mvt_dist.hpp>
+#include <distributions/mvn_dist.hpp>
 
 #define TILE_SIZE 16
 
 __constant__ dim_t dev_d;
+__constant__ dim_t dev_N;
 __constant__ double dev_norm;
 __constant__ float dev_df;
 __constant__ int dev_seed;
@@ -78,6 +79,75 @@ __global__ void mvt_sample_rand_kernel(double *rand_x, double *rand_chi, curandS
     rand_x[idx] = curand_normal_double(randState + idx);
   rand_chi[idx] = curand_chi_square(randState + idx, dev_df);
   rand_chi[idx] = std::sqrt(dev_df / rand_chi[idx]);
+}
+
+__global__ void mvt_sample_Gmu_kernel(double *dev_Gmu,
+                                      double *dev_G,
+                                      double *dev_pre_x)
+{
+  __shared__ int matOffset;
+  __shared__ int m;
+  __shared__ int k;
+  __shared__ int n;
+
+  __shared__ double _G[TILE_SIZE][TILE_SIZE];
+  __shared__ double _x[TILE_SIZE][TILE_SIZE];
+
+  // Get matrix id
+  matOffset = blockIdx.x * dev_d;
+
+  // Get thread x and y
+  const int x = threadIdx.y;
+  const int y = threadIdx.z;
+
+  // Get row[y] and column[x] index
+  int rowIdx = blockIdx.z * blockDim.z + threadIdx.z;
+  int colIdx = blockIdx.y * blockDim.y + threadIdx.y;
+
+  m = dev_d;
+  k = dev_d;
+  n = 1;
+
+  // Initialize tiles to zero
+  _G[y][x] = 0.0;
+  _x[y][x] = 0.0;
+
+  // Calculate the number of tiles required
+  int const TILES = ((k - 1) / TILE_SIZE) + 1;
+
+  // Initialize dot product and TILE_ROW
+  double dotProduct = 0;
+  int TILE_ROW;
+
+  for (unsigned t = 0; t < TILES; ++t)
+  {
+    // Figure out row of tiles we are at
+    TILE_ROW = t * TILE_SIZE;
+
+    // Read values from matrix A
+    _G[y][x] = (rowIdx < m && x + TILE_ROW < k)
+                   ? dev_G[(rowIdx * k) + x + TILE_ROW]
+                   : 0.0;
+
+    // Read values from matrix B
+    _x[y][x] = (colIdx < n && y + TILE_ROW < k)
+                   ? dev_pre_x[matOffset + (y + TILE_ROW) * n + colIdx]
+                   : 0.0;
+
+    __syncthreads();
+
+    for (int i = 0; i < TILE_SIZE; ++i)
+      dotProduct += _G[y][i] * _x[i][x];
+
+    __syncthreads();
+  }
+
+  int el = matOffset + (rowIdx * n + colIdx);
+  __syncthreads();
+
+  // Return rand vector
+  if (rowIdx < m && colIdx < n)
+    dev_Gmu[el] = dotProduct;
 }
 
 __global__ void mvt_sample_kernel(double *post_x_t,
@@ -165,8 +235,8 @@ void mvt_sample_kernel_wrapper(
   const size_t COVMAT_SZ = sizeof(double) * d * d;
 
   // Init random seed
-  time_t t;
-  srand((unsigned)time(&t));
+  time_t tt;
+  srand((unsigned)time(&tt));
   int seed = rand();
 
   // shuffle pre_x_t
@@ -196,6 +266,7 @@ void mvt_sample_kernel_wrapper(
   double *dev_pre_x_t;
   double *dev_post_x_t;
   double *dev_G;
+  double *dev_Gmu;
   double *dev_Q;
   double *dev_norm_rand;
   double *dev_tdist_rand;
@@ -208,6 +279,7 @@ void mvt_sample_kernel_wrapper(
   CUDA_CALL(cudaMalloc((void **)&dev_pre_x_t, VECTOR_SZ));
   CUDA_CALL(cudaMalloc((void **)&dev_post_x_t, VECTOR_SZ));
   CUDA_CALL(cudaMalloc((void **)&dev_G, COVMAT_SZ));
+  CUDA_CALL(cudaMalloc((void **)&dev_Gmu, VECTOR_SZ));
   CUDA_CALL(cudaMalloc((void **)&dev_Q, COVMAT_SZ));
   cuda_ret = cudaDeviceSynchronize();
   if (cuda_ret != cudaSuccess)
@@ -229,7 +301,7 @@ void mvt_sample_kernel_wrapper(
   int rand_gridDim = ceil(double(N * d) / double(rand_blockDim.x));
 
   /* Setup prng states */
-  setup_kernel<<<rand_gridDim, rand_blockDim>>>(devStates);
+  mvt_sample_setup_kernel<<<rand_gridDim, rand_blockDim>>>(devStates);
   cuda_ret = cudaDeviceSynchronize();
   if (cuda_ret != cudaSuccess)
     FATAL("Unable to launch kernel: setup_kernel");
@@ -497,9 +569,9 @@ __global__ void mvt_pdf_kernel(double *dev_w_t, double *dev_alpha_t,
   }
 }
 
-void mvt_pdf_kernel_wrapper(Eigen::VectorXd &w,
-                            const Eigen::VectorXd &y,
-                            const Eigen::VectorXd &mu,
+void mvt_pdf_kernel_wrapper(Eigen::VectorXd &w_t,
+                            const Eigen::VectorXd *y_t,
+                            const Eigen::VectorXd **post_x_t,
                             const Eigen::MatrixXd &E_inv,
                             const Eigen::MatrixXd &F,
                             const double norm,

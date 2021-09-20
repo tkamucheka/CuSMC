@@ -8,7 +8,7 @@
 #include <RcppEigen.h>
 
 // Local headers
-#include "statistics.hpp"
+//#include "statistics.hpp"
 
 typedef unsigned dim_t;
 
@@ -34,7 +34,7 @@ typedef std::function<void(unsigned *a_t, Eigen::VectorXd *w_t, int N, unsigned 
 typedef std::map<std::string, resampler_f> resamplers_t;
 
 // Distribution creator function
-typedef std::function<StatisticalDistribution *(distParams_t)> distributionCreator_f;
-typedef std::map<std::string, distributionCreator_f> distributions_t;
+// typedef std::function<StatisticalDistribution *(distParams_t)> distributionCreator_f;
+// typedef std::map<std::string, distributionCreator_f> distributions_t;
 
 #endif

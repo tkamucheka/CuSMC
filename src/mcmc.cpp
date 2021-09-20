@@ -102,22 +102,6 @@ void propagate_K(
       [](distParams_t params)
   { return MultiVariateTStudentDistribution::getInstance(params); };
 
-  // BUG:
-  // Q is already the result of eigenSolver
-  //
-  // // Find the eigen vectors of the covariance matrix
-  // Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>
-  //     eigen_solver(Q);
-  // Eigen::MatrixXd eigenvectors = eigen_solver.eigenvectors().real();
-
-  // // Find the eigenvalues of the covariance matrix
-  // Eigen::MatrixXd eigenvalues = eigen_solver.eigenvalues().real().asDiagonal();
-
-  // // Find the transformation matrix
-  // Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(eigenvalues);
-  // Eigen::MatrixXd sqrt_eigenvalues = es.operatorSqrt();
-  // Eigen::MatrixXd _Q = eigenvectors * sqrt_eigenvalues;
-
 // Initialize distribution with shuffled(theta) x_t
 #ifndef __GPU
 
@@ -242,7 +226,7 @@ void reweight_G(
 
   StatisticalDistribution *dist = Distributions[distribution_opt](params);
 
-  w_t[t] = dist->pdf_cu(y_t, F);
+  w_t[t] = dist->pdf_cu(y_t, post_x_t, F);
 
   delete dist;
 
@@ -319,68 +303,5 @@ void MCMC(
                distribution_opt);
   }
 }
-
-// void MCMC_step(
-//     Eigen::VectorXd **post_x_t,
-//     Eigen::VectorXd *w_t, unsigned *a_t,
-//     Eigen::VectorXd *y_t,
-//     const Eigen::MatrixXd &F, const Eigen::MatrixXd &G,
-//     const Eigen::matrixXd &V, const Eigen::MatrixXd &W,
-//     const dim_t N, const dim_t d, const dim_t timeSteps, const float df,
-//     std::string resampler_opt,
-//     std::string distribution_opt)
-// {
-//   // Initialize Resamplers and Distributions
-//   // Resamplers;
-//   Resamplers["metropolis"] = [](unsigned *a_t, Eigen::VectorXd *w_t, int N, unsigned t, int B = 10)
-//   {
-//     Sampler::metropolis_hastings(a_t, w_t, N, t, B);
-//   };
-
-//   // Distributions
-//   Distributions["normal"] =
-//       [](distParams_t params)
-//   { return StandardNormalDistribution::getInstance(params); };
-//   Distributions["mvn"] =
-//       [](distParams_t params)
-//   { return MultiVariateNormalDistribution::getInstance(params); };
-//   Distributions["mvt"] =
-//       [](distParams_t params)
-//   { return MultiVariateTStudentDistribution::getInstance(params); };
-
-//   // Assert availability of resampler and distribution
-//   // assert(Resamplers.find(resampler_opt) != Resamplers.end());
-//   // assert(Distributions.find(distribution_opt) != Distributions.end());
-
-//   resampler_f resampler = Resamplers[resampler_opt];
-
-//   // Solve Covariant Matrix for determinant & inverse
-//   //double E_det = E.determinant();
-//   Eigen::MatrixXd E_inv = E.inverse();
-//   Eigen::MatrixXd Q(d, d);
-//   eigenSolver(Q, E);
-
-//   // Get norm from distribution
-//   distParams_t params;
-//   params.mu = Eigen::VectorXd::Zero(d);
-//   params.sigma = E;
-//   params.nu = df;
-
-//   StatisticalDistribution *dist = Distributions[distribution_opt](params);
-//   double norm = dist->getNorm();
-
-//   int B = 10;
-//   for (unsigned t = 1; t < timeSteps; ++t)
-//   {
-//     // Calculate ancestors with Metropolis
-//     resampler(a_t, w_t, N, t, B);
-
-//     // Propagate particles
-//     propagate_K(distribution_opt, post_x_t, a_t, Q, N, d, t, df);
-
-//     // Resample weights
-//     reweight_G(distribution_opt, w_t, y_t, post_x_t, norm, E_inv, E, F, N, d, t, df);
-//   }
-// }
 
 #endif

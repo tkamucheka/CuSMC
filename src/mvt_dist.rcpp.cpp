@@ -50,9 +50,11 @@ Eigen::VectorXd MVT(Eigen::VectorXd mu, Eigen::MatrixXd sigma, float nu)
 
 //' MultiVariate T Probability Density Function
 //'
+//' @param x             [vector]: x.
 //' @param mu            [vector]: Location vector.
 //' @param sigma         [matrix]: Dispersion matrix.
-//' @param nu             [float]: degrees of freedom.
+//' @param nu            [float]: degrees of freedom.
+//' @return              [numeric]: Real value
 //' @export
 // [[Rcpp::export]]
 double MVTPDF(Eigen::VectorXd x, Eigen::VectorXd mu, Eigen::MatrixXd sigma, float nu)

@@ -1,13 +1,14 @@
 #ifdef __GPU
 
-#ifndef __MVN_CPP
-#define __MVN_CPP
+#ifndef __MVN_CU_CPP
+#define __MVN_CU_CPP
 
 #include <distributions/mvn_dist.hpp>
 
 #define TILE_SIZE 16
 
 __constant__ dim_t dev_d;
+__constant__ dim_t dev_N;
 __constant__ double dev_norm;
 __constant__ int dev_seed;
 
@@ -179,8 +180,8 @@ void mvn_sample_kernel_wrapper(
   const size_t COVMAT_SZ = sizeof(double) * d * d;
 
   // Init random seed
-  time_t t;
-  srand((unsigned)time(&t));
+  time_t tt;
+  srand((unsigned)time(&tt));
   int seed = rand();
 
   // double *host_draws = (double *)malloc(VECTOR_SZ);
@@ -208,10 +209,13 @@ void mvn_sample_kernel_wrapper(
       host_Q[i * d + j] = Q(i, j);
     }
 
+  double *host_x_t;
+  host_x_t = (double *)malloc(VECTOR_SZ);
   // device memory
-  double *dev_pre_x_t;
+  double *dev_pre_x_t; // 
   double *dev_post_x_t;
-  double *dev_G;
+  double *dev_G; // 2d x 2d
+  double *dev_Gmu; //G_mu = G * post_x_t 
   double *dev_Q;
   double *dev_norm_rand;
   curandState *devPRNGStates;
@@ -222,6 +226,7 @@ void mvn_sample_kernel_wrapper(
   CUDA_CALL(cudaMalloc((void **)&dev_pre_x_t, VECTOR_SZ));
   CUDA_CALL(cudaMalloc((void **)&dev_post_x_t, VECTOR_SZ));
   CUDA_CALL(cudaMalloc((void **)&dev_G, COVMAT_SZ));
+  CUDA_CALL(cudaMalloc((void **)&dev_Gmu, VECTOR_SZ));
   CUDA_CALL(cudaMalloc((void **)&dev_Q, COVMAT_SZ));
   cuda_ret = cudaDeviceSynchronize();
   if (cuda_ret != cudaSuccess)
@@ -269,7 +274,7 @@ void mvn_sample_kernel_wrapper(
   cuda_ret = cudaDeviceSynchronize();
   if (cuda_ret != cudaSuccess)
     FATAL("Unable to launch kernel: mvn_sample_kernel");
-
+  
   CUDA_CALL(cudaMemcpy(host_x_t, dev_post_x_t, VECTOR_SZ,
                        cudaMemcpyDeviceToHost));
   cuda_ret = cudaDeviceSynchronize();
@@ -286,6 +291,8 @@ void mvn_sample_kernel_wrapper(
   cudaFree(dev_pre_x_t);
   cudaFree(dev_post_x_t);
   cudaFree(dev_Q);
+  cudaFree(dev_G);
+  cudaFree(dev_Gmu);
 
   // Free host memory
   free(host_x_t);
@@ -309,8 +316,8 @@ __global__ void mvn_pdf_kernel_y_minus_Fmu(double *dev_alpha,
   matOffset = blockIdx.x * dev_d;
 
   // Get thread x and y
-  const int y = threadIdx.y;
-  const int z = threadIdx.z;
+  const int x = threadIdx.y;
+  const int y = threadIdx.z;
 
   // Get row[y] and column[x] index
   int rowIdx = blockIdx.z * blockDim.z + threadIdx.z;
@@ -344,7 +351,7 @@ __global__ void mvn_pdf_kernel_y_minus_Fmu(double *dev_alpha,
 
     // Read values from matrix B
     _x[y][x] = (colIdx < n && y + TILE_ROW < k)
-                   ? dev_x_t[matOffset + (y + TILE_ROW) * n + colIdx]
+                   ? dev_x[matOffset + (y + TILE_ROW) * n + colIdx]
                    : 0.0;
 
     __syncthreads();
@@ -360,10 +367,10 @@ __global__ void mvn_pdf_kernel_y_minus_Fmu(double *dev_alpha,
   // save dot product
   __syncthreads();
   if (blockIdx.x < dev_N && rowIdx < m && colIdx < n)
-    dev_alpha_t[matOffset + el] = dev_y_t[el] - dotProduct;
+    dev_alpha[matOffset + el] = dev_y[el] - dotProduct;
 }
 
-__global__ void mvn_pdf_kernel_Einv_alpha(double *dev_Ealpha_t,
+__global__ void mvn_pdf_kernel_Einv_alpha(double *dev_Ealpha,
                                           double *dev_alpha_t,
                                           double *dev_E_inv)
 {
@@ -495,7 +502,7 @@ __global__ void mvn_pdf_kernel(double *dev_w_t,
     __syncthreads();
   }
 
-  int el = blockIdx.x;
+  //int el = blockIdx.x;
   __syncthreads();
   if (x == 0 && y == 0)
     dev_w_t[blockIdx.x] = dev_norm * exp(-0.5 * quadform);
@@ -503,8 +510,8 @@ __global__ void mvn_pdf_kernel(double *dev_w_t,
 
 // MVNPDF kernel wrapper
 void mvn_pdf_kernel_wrapper(Eigen::VectorXd &w_t,
-                            const Eigen::VectorXd *y_t,
-                            Eigen::VectorXd **post_x_t,
+                            const Eigen::VectorXd *y,
+                            const Eigen::VectorXd **post_x_t,
                             const double norm,
                             const Eigen::MatrixXd &E_inv,
                             const Eigen::MatrixXd &F,
@@ -542,19 +549,20 @@ void mvn_pdf_kernel_wrapper(Eigen::VectorXd &w_t,
   double *host_E_inv;
   double *host_F;
 
-  host_w_t = (double *)malloc(WEIGHTS_SZ);
+  host_w_t = (double *)malloc(WEIGHT_SZ);
   host_y_t = (double *)malloc(INPUT_SZ);
   host_x_t = (double *)malloc(PARTICLE_SZ);
   host_E_inv = (double *)malloc(COVMAT_SZ);
   host_F = (double *)malloc(COVMAT_SZ);
 
+int i, j;
 #pragma omp parallel for
-  for (int j = 0; j < d; ++j)
+  for (j = 0; j < d; ++j)
     host_y_t[j] = y[t][j];
 
 #pragma omp parallel for
-  for (unsigned i = 0; i < N; ++i)
-    for (int j = 0; j < d; ++j)
+  for (i = 0; i < N; ++i)
+    for (j = 0; j < d; ++j)
       host_x_t[i * d + j] = post_x_t[t][i][j];
 
 #pragma omp parallel for
