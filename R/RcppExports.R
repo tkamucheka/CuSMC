@@ -72,7 +72,11 @@ NULL
 #' @param m0           [vector]: Initial parameters at t=0
 #' @param C0           [matrix]: Initial covariant matrix at t=0
 #' @param F            [matrix]: Covariant matrix for scaling particle samples
-#' @param sampler      [string]: Resampling sampler
+#' @param G            [matrix]: Covariant matrix for scaling particle samples
+#' @param V            [matrix]: Covariant matrix for noise??
+#' @param W            [matrix]: Covariant matrix for noise??
+#' @param df           [float]:  Degrees of freedom (for MVT)
+#' @param resampler      [string]: Resampling sampler
 #' @param distribution [string]: Distribution for sampling particles
 #' @export
 run <- function(N, d, timeSteps, Y, m0, C0, F, G, V, W, df, resampler, distribution, p = 0L) {

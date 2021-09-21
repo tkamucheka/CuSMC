@@ -47,9 +47,9 @@ void initialize(
     unsigned N, unsigned d, unsigned t, float df, std::string distribution_opt)
 {
   // Distributions
-  Distributions["normal"] =
-      [](distParams_t params)
-  { return StandardNormalDistribution::getInstance(params); };
+  // Distributions["normal"] =
+  //     [](distParams_t params)
+  // { return StandardNormalDistribution::getInstance(params); };
   Distributions["mvn"] =
       [](distParams_t params)
   { return MultiVariateNormalDistribution::getInstance(params); };
@@ -92,9 +92,9 @@ void propagate_K(
     std::string distribution_opt)
 {
   // Distributions
-  Distributions["normal"] =
-      [](distParams_t params)
-  { return StandardNormalDistribution::getInstance(params); };
+  // Distributions["normal"] =
+  //     [](distParams_t params)
+  // { return StandardNormalDistribution::getInstance(params); };
   Distributions["mvn"] =
       [](distParams_t params)
   { return MultiVariateNormalDistribution::getInstance(params); };
@@ -166,9 +166,9 @@ void reweight_G(
     std::string distributions_opt)
 {
   // Distributions
-  Distributions["normal"] =
-      [](distParams_t params)
-  { return StandardNormalDistribution::getInstance(params); };
+  // Distributions["normal"] =
+  //     [](distParams_t params)
+  // { return StandardNormalDistribution::getInstance(params); };
   Distributions["mvn"] =
       [](distParams_t params)
   { return MultiVariateNormalDistribution::getInstance(params); };
@@ -245,15 +245,17 @@ void MCMC(
 {
   // Initialize Resamplers and Distributions
   // Resamplers;
+
+  Rcpp::Rcout << "\n\n\nHere\n\n\n";
   Resamplers["metropolis"] = [](unsigned *a_t, Eigen::VectorXd *w_t, int N, unsigned t, int B = 10)
   {
     Sampler::metropolis_hastings(a_t, w_t, N, t, B);
   };
 
   // Distributions
-  Distributions["normal"] =
-      [](distParams_t params)
-  { return StandardNormalDistribution::getInstance(params); };
+  // Distributions["normal"] =
+  //     [](distParams_t params)
+  // { return StandardNormalDistribution::getInstance(params); };
   Distributions["mvn"] =
       [](distParams_t params)
   { return MultiVariateNormalDistribution::getInstance(params); };

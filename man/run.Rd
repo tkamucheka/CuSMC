@@ -4,7 +4,22 @@
 \alias{run}
 \title{Run simulations}
 \usage{
-run(N, d, timeSteps, Y, m0, C0, F, df, resampler, distribution, p = 0L)
+run(
+  N,
+  d,
+  timeSteps,
+  Y,
+  m0,
+  C0,
+  F,
+  G,
+  V,
+  W,
+  df,
+  resampler,
+  distribution,
+  p = 0L
+)
 }
 \arguments{
 \item{N}{[integer]: Number of particles is solution.}
@@ -21,9 +36,17 @@ run(N, d, timeSteps, Y, m0, C0, F, df, resampler, distribution, p = 0L)
 
 \item{F}{[matrix]: Covariant matrix for scaling particle samples}
 
-\item{distribution}{[string]: Distribution for sampling particles}
+\item{G}{[matrix]: Covariant matrix for scaling particle samples}
 
-\item{sampler}{[string]: Resampling sampler}
+\item{V}{[matrix]: Covariant matrix for noise??}
+
+\item{W}{[matrix]: Covariant matrix for noise??}
+
+\item{df}{[float]:  Degrees of freedom (for MVT)}
+
+\item{resampler}{[string]: Resampling sampler}
+
+\item{distribution}{[string]: Distribution for sampling particles}
 }
 \description{
 Run simulations

@@ -10,6 +10,7 @@
 StatisticalDistribution::StatisticalDistribution() {}
 //StatisticalDistribution::~StatisticalDistribution() {}
 
+/*
 // Standard Normal Distribution ===============================================
 
 // Standard Normal Distribution constructor/destructor
@@ -150,14 +151,14 @@ void StandardNormalDistribution::sample(const std::vector<double> &uniform_draws
 
   return;
 }
-
+*/
 // Multi-Variate Normal Normal Distribution ====================================
 
 MultiVariateNormalDistribution::MultiVariateNormalDistribution(const Eigen::VectorXd &m,
                                                                const Eigen::MatrixXd &s)
 {
-  mu = m;
-  sigma = s;
+  this->mu = m;
+  this->sigma = s;
 }
 MultiVariateNormalDistribution::~MultiVariateNormalDistribution(){}
 
@@ -171,8 +172,18 @@ MultiVariateNormalDistribution * MultiVariateNormalDistribution::getInstance(con
   return MVN;
 }
 
-// Distribution functions pdf_cu
-Eigen::VectorXd MultiVariateNormalDistribution::pdf_cu(const Eigen::VectorXd *y, const Eigen::VectorXd **post_x_t, const Eigen::MatrixXd &F) const
+// Distribution functions
+double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &x) const {
+  return 0.0;
+}
+
+double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const {
+  return 0.0;
+}
+
+Eigen::VectorXd MultiVariateNormalDistribution::pdf_cu(const Eigen::VectorXd *y, 
+                                                       const Eigen::VectorXd **post_x_t, 
+                                                       const Eigen::MatrixXd &F) const
 {
   // unsigned int n = mu.rows();
   // double sqrt2pi = std::sqrt(2 * M_PI);
@@ -203,10 +214,10 @@ double MultiVariateNormalDistribution::getNorm() const
                  std::pow(this->sigma.determinant(), 0.5));
 }
 
-double MultiVariateNormalDistribution::cdf() const { return 0.0f; }
+// double MultiVariateNormalDistribution::cdf() const { return 0.0f; }
 
 // Inverse cumulative distribution function
-double MultiVariateNormalDistribution::inv_cdf(const double &quantile) const { return 0.0f; }
+// double MultiVariateNormalDistribution::inv_cdf(const double &quantile) const { return 0.0f; }
 
 // Descriptive stats
 Eigen::VectorXd MultiVariateNormalDistribution::mean() const { return mu; }
@@ -221,11 +232,16 @@ void MultiVariateNormalDistribution::sample(
     const Eigen::MatrixXd Q,
     const dim_t N,
     const dim_t d,
-    const dim_t t)
+    const dim_t t) const
 {
   mvn_sample_kernel_wrapper(post_x_t, a_t, G, Q, N, d, t);
 }
 
+void MultiVariateNormalDistribution::sample(Eigen::VectorXd &dist_draws,
+          const Eigen::MatrixXd &Q,
+          const unsigned int n_iterations) const {
+            std::cout << "Done nothing" << std::endl;
+          }
 // Multi-Variate T Student Distribution ====================================
 
 MultiVariateTStudentDistribution::MultiVariateTStudentDistribution(
@@ -240,10 +256,14 @@ MultiVariateTStudentDistribution::MultiVariateTStudentDistribution(
 MultiVariateTStudentDistribution::~MultiVariateTStudentDistribution(){}
 
 // Return class instance
-MultiVariateTStudentDistribution *MultiVariateTStudentDistribution::getInstance(const distParams_t params)
+MultiVariateTStudentDistribution * MultiVariateTStudentDistribution::getInstance(const distParams_t params)
 {
   // MultiVariateTStudentDistribution MVT(mu, sigma, nu);
-  return new MultiVariateTStudentDistribution(params.mu, params.sigma, params.nu);
+  MultiVariateTStudentDistribution * MVT = new MultiVariateTStudentDistribution(params.mu, params.sigma, params.nu);
+  MVT->params = params;
+
+  return MVT;
+  // return new MultiVariateTStudentDistribution(params.mu, params.sigma, params.nu);
 }
 
 //Calculate constant norm
@@ -257,7 +277,15 @@ double MultiVariateTStudentDistribution::getNorm() const
   return norm1 * norm2;
 }
 
-// Distribution functions pdf_cu
+// Distribution functions pdf
+double MultiVariateTStudentDistribution::pdf(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const {
+  return 0.0;
+}
+
+double MultiVariateTStudentDistribution::pdf(const Eigen::VectorXd &y) const {
+  return 0.0;
+}
+
 Eigen::VectorXd MultiVariateTStudentDistribution::pdf_cu(const Eigen::VectorXd *y, 
                                                          const Eigen::VectorXd **post_x_t,
                                                          const Eigen::MatrixXd &F) const
@@ -275,17 +303,16 @@ Eigen::VectorXd MultiVariateTStudentDistribution::pdf_cu(const Eigen::VectorXd *
   return w;
 }
 
-// double MultiVariateTStudentDistribution::pdf(const Eigen::VectorXd &y,
-//                                              const Eigen::VectorXd &x,
-//                                              const Eigen::MatrixXd &E) const
-// {
-//   return 0.0f;
-// }
+void MultiVariateTStudentDistribution::sample(Eigen::VectorXd &dist_draws,
+            const Eigen::MatrixXd Q,
+            const unsigned int n_iterations) const {
+              std::cout << "Done nothing" << std::endl;
+            }
 
-double MultiVariateTStudentDistribution::cdf() const { return 0.0f; }
+// double MultiVariateTStudentDistribution::cdf() const { return 0.0f; }
 
 // Inverse cumulative distribution function
-double MultiVariateTStudentDistribution::inv_cdf(const double &quantile) const { return 0.0f; }
+// double MultiVariateTStudentDistribution::inv_cdf(const double &quantile) const { return 0.0f; }
 
 // Descriptive stats
 Eigen::VectorXd MultiVariateTStudentDistribution::mean() const { return mu; } //note that this is location vector, not the mean vector!

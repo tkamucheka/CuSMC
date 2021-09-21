@@ -7,11 +7,16 @@
 MVTPDF(x, mu, sigma, nu)
 }
 \arguments{
+\item{x}{[vector]: x.}
+
 \item{mu}{[vector]: Location vector.}
 
 \item{sigma}{[matrix]: Dispersion matrix.}
 
 \item{nu}{[float]: degrees of freedom.}
+}
+\value{
+[numeric]: Real value
 }
 \description{
 MultiVariate T Probability Density Function

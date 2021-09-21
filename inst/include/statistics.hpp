@@ -1,5 +1,3 @@
-//#ifndef __GPU
-
 #ifndef __STATISTICS_HPP
 #define __STATISTICS_HPP
 
@@ -50,15 +48,20 @@ public:
 
   // Distribution functions
   // Probability Density Function
+  virtual Eigen::VectorXd pdf_cu(const Eigen::VectorXd *y, 
+                                 const Eigen::VectorXd **post_x_t, 
+                                 const Eigen::MatrixXd &F) const {
+                                   return Eigen::VectorXd::Zero(y->rows());
+                                 }
   virtual double pdf(const double &x) const { return 0.0f; }
   virtual double pdf(const Eigen::VectorXd &x) const { return 0.0f; }
   virtual double pdf(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const { return 0.0f; }
   virtual double getNorm() const { return 0.0f; }
   // Cumulative Distribution Function
-  double cdf(const double &x) const;
+  // double cdf(const double &x) const;
 
-  // Inverse cumulative distribution functions
-  double inv_pdf(const double &quantile);
+  // // Inverse cumulative distribution functions
+  // double inv_pdf(const double &quantile);
 
   // Descriptive stats
   double mean();
@@ -66,16 +69,28 @@ public:
   double stdev();
 
   // Random draw function
-  virtual void sample(const std::vector<double> &uniform_draws,
-                      std::vector<double> &dist_draws) const;
+  // virtual void sample(const std::vector<double> &uniform_draws,
+  //                     std::vector<double> &dist_draws) const;
   // MVN & MVT
-  virtual void sample(Eigen::VectorXd &dist_draws,
-                      const unsigned int n_iterations) const;
+  // virtual void sample(Eigen::VectorXd &dist_draws,
+  //                     const unsigned int n_iterations) const;
+// #ifndef __GPU
   virtual void sample(Eigen::VectorXd &dist_draws,
                       const Eigen::MatrixXd &x,
-                      const unsigned int n_iterations) const;
+                      const unsigned int n_iterations) const {};
+// #else
+  virtual void sample(
+                      Eigen::VectorXd **post_x_t,
+                      unsigned *a_t,
+                      const Eigen::MatrixXd G,
+                      const Eigen::MatrixXd Q,
+                      const dim_t N,
+                      const dim_t d,
+                      const dim_t t) const {};
+// #endif
 };
 
+/*
 class StandardNormalDistribution : public StatisticalDistribution
 {
 private:
@@ -112,6 +127,7 @@ public:
   void sample(const std::vector<double> &uniform_draws,
               std::vector<double> &dist_draws) const;
 };
+*/
 
 class MultiVariateNormalDistribution : public StatisticalDistribution
 {
@@ -138,29 +154,22 @@ public:
   };
 
   // Distribution functions
-  Eigen::VectorXd pdf_cu(const Eigen::VectorXd *y, //pdf_cu
-                         const Eigen::VectorXd **post_x_t, 
-                         const Eigen::MatrixXd &F) const;
-  double pdf(const Eigen::VectorXd &x) const;
-  double pdf(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const;
-  // double pdf(const Eigen::VectorXd &y,
-  //            const Eigen::VectorXd &x,
-  //            const Eigen::MatrixXd &s) const;
   double getNorm() const;
-  double cdf() const;
-
-  // Inverse cumulative distribution function
-  double inv_cdf(const double &quantile) const;
-
-  // Descriptive stats
   Eigen::VectorXd mean() const;
   Eigen::VectorXd var() const;
   Eigen::VectorXd stdev() const;
+// #ifndef __GPU
+  double pdf(const Eigen::VectorXd &x) const;
+  double pdf(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const;
+  void sample(Eigen::VectorXd &dist_draws,
+            const Eigen::MatrixXd &Q,
+            const unsigned int n_iterations) const;
+// #else
+  Eigen::VectorXd pdf_cu(const Eigen::VectorXd *y, //pdf_cu
+                         const Eigen::VectorXd **post_x_t, 
+                         const Eigen::MatrixXd &F) const;
 
   // Random draw function
-  void sample(Eigen::VectorXd &dist_draws,
-              const Eigen::MatrixXd &Q,
-              const unsigned int n_iterations) const;
   void sample(
     Eigen::VectorXd **post_x_t,
     unsigned *a_t,
@@ -168,7 +177,8 @@ public:
     const Eigen::MatrixXd Q,
     const dim_t N,
     const dim_t d,
-    const dim_t t);
+    const dim_t t) const;
+// #endif
 };
 
 class MultiVariateTStudentDistribution : public StatisticalDistribution
@@ -198,38 +208,30 @@ public:
     this->sigma = sigma;
     this->nu = nu;
   }
-
-  // Distribution functions
-  Eigen::VectorXd pdf_cu(const Eigen::VectorXd *y,
-                         const Eigen::VectorXd **post_x_t,
-                         const Eigen::MatrixXd &F) const;
-  double pdf(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const;
-  double pdf(const Eigen::VectorXd &y) const;
-  // double pdf(const Eigen::VectorXd &y,
-  //            const Eigen::VectorXd &x,
-  //            const Eigen::MatrixXd &E) const;
-  double getNorm() const;
-  double cdf() const;
-
-  // Inverse cumulative distribution function
-  double inv_cdf(const double &quantile) const;
-
   // Descriptive stats
   Eigen::VectorXd mean() const;
   Eigen::VectorXd stdev() const;
   float dfree() const;
-
+  double getNorm() const;
+// #ifndef __GPU
+  // Distribution functions
+  double pdf(const Eigen::VectorXd &y, const Eigen::MatrixXd &F) const;
+  double pdf(const Eigen::VectorXd &y) const;
   // Random draw function
   void sample(Eigen::VectorXd &dist_draws,
               const Eigen::MatrixXd Q,
               const unsigned int n_iterations) const;
+// #else
+  Eigen::VectorXd pdf_cu(const Eigen::VectorXd *y,
+                        const Eigen::VectorXd **post_x_t,
+                        const Eigen::MatrixXd &F) const;            
   void sample( //Cuda sampling
     Eigen::VectorXd **post_x_t,
     unsigned *a_t,
     const Eigen::MatrixXd G,
     const Eigen::MatrixXd Q,
     const dim_t N, const dim_t d, const dim_t t) const;
+// #endif
 };
 
 #endif // __STATISTICS_HPP
-//#endif // __GPU

@@ -58,16 +58,17 @@ NVCC_FLAGS  		= --x cu -std=c++14 -D__GPU 							\
 NVCC_LD_FLAGS		= $(CUDA_LIB) $(OPENMP_LIBS)
 
 PKG_CPPFLAGS 		= $(CUDA_INCLUDES) $(PKG_INCLUDES) \
+									# -Xcompiler $(OPENMP_CXXFLAGS) \
 									# -DNDEBUG -D_FORTIFY_SOURCE=2 \
-									# -Wno-unknown-pragmas -Wno-everything -Wno-overloaded-virtual \
-									#-Wformat -Wdate-time -Wno-ignored-attributes \ 
+                                    # -Wformat \
+                                    # -Wdate-time -Wno-ignored-attributes \
+                                    # -Wno-unknown-pragmas -Wno-everything -Wno-overloaded-virtual 
 
-ifeq ($NVCC_TEST,1)
-	PKG_LIBS = $(NVCC_LD_FLAGS)
-else
+ifeq (, $(shell which nvcc))
 	PKG_LIBS = $(OPENMP_LIBS)
+else
+	PKG_LIBS = $(NVCC_LD_FLAGS)
 endif
-
 # Objects
 API_OBJECTS			= mvt_dist.rcpp.o mvn_dist.rcpp.o samplers.rcpp.o run.rcpp.o \
 									RcppExports.o

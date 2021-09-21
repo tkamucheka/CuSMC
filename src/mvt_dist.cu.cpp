@@ -492,7 +492,8 @@ __global__ void mvt_pdf_kernel_Einv_alpha(double *dev_Ealpha_t, //same as mvn
     dev_Ealpha_t[el] = dotProduct;
 }
 
-__global__ void mvt_pdf_kernel(double *dev_w_t, double *dev_alpha_t,
+__global__ void mvt_pdf_kernel(double *dev_w_t, 
+                               double *dev_alpha_t,
                                double *dev_Ealpha_t)
 {
   __shared__ int matOffset;
@@ -616,18 +617,19 @@ void mvt_pdf_kernel_wrapper(Eigen::VectorXd &w_t,
   host_E_inv = (double *)malloc(COVMAT_SZ);
   host_F = (double *)malloc(COVMAT_SZ);
 
+int i, j;
 #pragma omp parallel for
-  for (unsigned j = 0; j < d; ++j)
+  for (j = 0; j < d; ++j)
     host_y_t[j] = y_t[t][j];
 
 #pragma omp parallel for
-  for (unsigned i = 0; i < N; ++i)
-    for (unsigned j = 0; j < d; ++j)
+  for (i = 0; i < N; ++i)
+    for (j = 0; j < d; ++j)
       host_pre_x_t[i * d + j] = post_x_t[t][i][j];
 
 #pragma omp parallel for
-  for (unsigned i = 0; i < d; ++i)
-    for (unsigned j = 0; j < d; ++j)
+  for (i = 0; i < d; ++i)
+    for (j = 0; j < d; ++j)
     {
       host_E_inv[i * d + j] = E_inv(i, j);
       host_F[i * d + j] = F(i, j);

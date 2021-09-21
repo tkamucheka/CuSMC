@@ -237,6 +237,7 @@ void mvn_sample_kernel_wrapper(
   CUDA_CALL(cudaMemcpy(dev_G, host_G, COVMAT_SZ, cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(dev_Q, host_Q, COVMAT_SZ, cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpyToSymbol(dev_seed, &seed, sizeof(int)));
+  CUDA_CALL(cudaMemcpyToSymbol(dev_N, &N, sizeof(dim_t)));
   CUDA_CALL(cudaMemcpyToSymbol(dev_d, &d, sizeof(dim_t)));
 
   dim3 rand_blockDim(512);
