@@ -572,7 +572,7 @@ __global__ void mvt_pdf_kernel(double *dev_w_t,
 
 void mvt_pdf_kernel_wrapper(Eigen::VectorXd &w_t,
                             const Eigen::VectorXd *y_t,
-                            const Eigen::VectorXd **post_x_t,
+                            Eigen::VectorXd **post_x_t,
                             const Eigen::MatrixXd &E_inv,
                             const Eigen::MatrixXd &F,
                             const double norm,

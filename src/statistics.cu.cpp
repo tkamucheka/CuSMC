@@ -182,7 +182,7 @@ double MultiVariateNormalDistribution::pdf(const Eigen::VectorXd &x, const Eigen
 }
 
 Eigen::VectorXd MultiVariateNormalDistribution::pdf_cu(const Eigen::VectorXd *y, 
-                                                       const Eigen::VectorXd **post_x_t, 
+                                                       Eigen::VectorXd **post_x_t, 
                                                        const Eigen::MatrixXd &F) const
 {
   // unsigned int n = mu.rows();
@@ -225,7 +225,7 @@ Eigen::VectorXd MultiVariateNormalDistribution::mean() const { return mu; }
 Eigen::VectorXd MultiVariateNormalDistribution::stdev() const { return sigma; }
 
 // Random draw function
-void MultiVariateNormalDistribution::sample(
+void MultiVariateNormalDistribution::sample_cu(
     Eigen::VectorXd **post_x_t,
     unsigned *a_t,
     const Eigen::MatrixXd G,
@@ -237,11 +237,20 @@ void MultiVariateNormalDistribution::sample(
   mvn_sample_kernel_wrapper(post_x_t, a_t, G, Q, N, d, t);
 }
 
-void MultiVariateNormalDistribution::sample(Eigen::VectorXd &dist_draws,
-          const Eigen::MatrixXd &Q,
-          const unsigned int n_iterations) const {
-            std::cout << "Done nothing" << std::endl;
-          }
+// Random draw function
+void MultiVariateNormalDistribution::sample_cu_init(
+    Eigen::VectorXd *post_x_t0,
+    const Eigen::MatrixXd Q,
+    const dim_t N,
+    const dim_t d) const
+{
+  mvn_sample_kernel_wrapper(post_x_t0, this->mu, Q, N, d);
+}
+
+void MultiVariateNormalDistribution::sample(
+    Eigen::VectorXd &dist_draws,
+    const Eigen::MatrixXd &Q,
+    const unsigned int n_iterations) const {}
 // Multi-Variate T Student Distribution ====================================
 
 MultiVariateTStudentDistribution::MultiVariateTStudentDistribution(
@@ -287,7 +296,7 @@ double MultiVariateTStudentDistribution::pdf(const Eigen::VectorXd &y) const {
 }
 
 Eigen::VectorXd MultiVariateTStudentDistribution::pdf_cu(const Eigen::VectorXd *y, 
-                                                         const Eigen::VectorXd **post_x_t,
+                                                         Eigen::VectorXd **post_x_t,
                                                          const Eigen::MatrixXd &F) const
 {
   double norm = this->getNorm();
@@ -303,12 +312,6 @@ Eigen::VectorXd MultiVariateTStudentDistribution::pdf_cu(const Eigen::VectorXd *
   return w;
 }
 
-void MultiVariateTStudentDistribution::sample(Eigen::VectorXd &dist_draws,
-            const Eigen::MatrixXd Q,
-            const unsigned int n_iterations) const {
-              std::cout << "Done nothing" << std::endl;
-            }
-
 // double MultiVariateTStudentDistribution::cdf() const { return 0.0f; }
 
 // Inverse cumulative distribution function
@@ -322,7 +325,7 @@ Eigen::VectorXd MultiVariateTStudentDistribution::stdev() const { return sigma; 
 float MultiVariateTStudentDistribution::dfree() const { return nu; }
 
 // Random draw function
-void MultiVariateTStudentDistribution::sample(
+void MultiVariateTStudentDistribution::sample_cu(
     Eigen::VectorXd **post_x_t,
     unsigned *a_t,
     const Eigen::MatrixXd G,
@@ -331,6 +334,20 @@ void MultiVariateTStudentDistribution::sample(
 {
   mvt_sample_kernel_wrapper(post_x_t, a_t, G, Q, N, d, t, this->nu);
 }
+
+// void MultiVariateTStudentDistribution::sample_cu_init(
+//     Eigen::VectorXd *post_x_t0,
+//     const Eigen::MatrixXd Q,
+//     const dim_t N,
+//     const dim_t d) const
+// {
+//   mvn_sample_kernel_wrapper(post_x_t0, this->mu, Q, N, d, this->nu);
+// }
+
+void MultiVariateTStudentDistribution::sample(
+    Eigen::VectorXd &dist_draws,
+    const Eigen::MatrixXd Q,
+    const unsigned int n_iterations) const{}
 
 #endif
 

@@ -72,9 +72,9 @@ endif
 # Objects
 API_OBJECTS			= mvt_dist.rcpp.o mvn_dist.rcpp.o samplers.rcpp.o run.rcpp.o \
 									RcppExports.o
-CPP_OBJECTS     = linear_algebra.o mcmc.o particle_filter.o samplers.o \
+CPP_OBJECTS     = linear_algebra.o particle_filter.o samplers.o \
 									utility.o
-CXX_OBJECTS 		= statistics.cc.o
+CXX_OBJECTS 		= statistics.cc.o mcmc.o
 CUDA_OBJECTS		= statistics.cu.o mvn_dist.cu.o  mvt_dist.cu.o
 # PKG_OBJECTS			=  
 CUSMC_OBJECTS 	= $(PKG_OBJECTS) $(API_OBJECTS) $(CPP_OBJECTS) $(CXX_OBJECTS)

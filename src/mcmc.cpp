@@ -73,9 +73,13 @@ void initialize(
   StatisticalDistribution *dist = Distributions[distribution_opt](params);
 
   // Initialize thetas
+#ifndef __GPU
 #pragma omp parallel for
   for (unsigned i = 0; i < N; ++i)
     dist->sample(x_t[0][i], Q, 200);
+#else
+  dist->sample_cu_init(x_t[0], Q, N, d);
+#endif // !__GPU
 
   // Initialize omega
   w_t[0].fill(1 / double(N));
@@ -148,7 +152,7 @@ void propagate_K(
 
   StatisticalDistribution *dist = Distributions[distribution_opt](params);
 
-  dist->sample(post_x_t, a_t, G, Q_w, N, d, t);
+  dist->sample_cu(post_x_t, a_t, G, Q_w, N, d, t);
 
   delete dist;
 
@@ -214,20 +218,19 @@ void reweight_G(
 
   distParams_t params;
   params.post_x_t = post_x_t;
-  params.a_t = a_t;
+  // params.a_t = a_t;
   params.sigma = V;
   params.sigma_det = V_det;
   params.sigma_inv = V_inv;
-  params.df = df;
-  params.Q = Q;
+  params.nu = df;
+  // params.Q = Q;
   params.N = N;
   params.d = d;
   params.t = t;
 
-  StatisticalDistribution *dist = Distributions[distribution_opt](params);
+  StatisticalDistribution *dist = Distributions[distributions_opt](params);
 
   w_t[t] = dist->pdf_cu(y_t, post_x_t, F);
-
   delete dist;
 
 #endif
@@ -246,7 +249,6 @@ void MCMC(
   // Initialize Resamplers and Distributions
   // Resamplers;
 
-  Rcpp::Rcout << "\n\n\nHere\n\n\n";
   Resamplers["metropolis"] = [](unsigned *a_t, Eigen::VectorXd *w_t, int N, unsigned t, int B = 10)
   {
     Sampler::metropolis_hastings(a_t, w_t, N, t, B);

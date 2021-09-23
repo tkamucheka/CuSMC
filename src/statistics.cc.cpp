@@ -257,13 +257,18 @@ void MultiVariateNormalDistribution::sample(
   dist_draws = (Q * x) + mu;
 }
 
-void MultiVariateNormalDistribution::sample(Eigen::VectorXd **post_x_t,
+void MultiVariateNormalDistribution::sample_cu(Eigen::VectorXd **post_x_t,
             unsigned *a_t,
             const Eigen::MatrixXd G,
             const Eigen::MatrixXd Q,
             const dim_t N,
             const dim_t d,
             const dim_t t) const {}
+      
+void MultiVariateNormalDistribution::sample_cu_init(Eigen::VectorXd *post_x_t0,
+                                              const Eigen::MatrixXd Q,
+                                              const dim_t N,
+                                              const dim_t d) const {}
 
 // Multi-Variate T Student Distribution ====================================
 
@@ -405,12 +410,16 @@ void MultiVariateTStudentDistribution::sample(
   dist_draws = chi.asDiagonal() * (Q * x) + mu; //x = dx1, mu = dx1, Q = dxd, chi = dx1
 }
 
-void MultiVariateTStudentDistribution::sample(Eigen::VectorXd **post_x_t,
+void MultiVariateTStudentDistribution::sample_cu(Eigen::VectorXd **post_x_t,
                                               unsigned *a_t,
                                               const Eigen::MatrixXd G,
                                               const Eigen::MatrixXd Q,
                                               const dim_t N,
                                               const dim_t d,
                                               const dim_t t) const {}
+// void MultiVariateTStudentDistribution::sample_cu_init(Eigen::VectorXd *post_x_t0,
+//                                               const Eigen::MatrixXd Q,
+//                                               const dim_t N,
+//                                               const dim_t d) const {}
 #endif // __STATISTICS_CPP
 #endif // __GPU

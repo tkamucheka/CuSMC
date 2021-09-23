@@ -18,7 +18,7 @@
 
 void mvn_pdf_kernel_wrapper(Eigen::VectorXd &w_t,
                             const Eigen::VectorXd *y,
-                            const Eigen::VectorXd **post_x_t,
+                            Eigen::VectorXd **post_x_t,
                             const double norm,
                             const Eigen::MatrixXd &E_inv,
                             const Eigen::MatrixXd &F,
@@ -30,9 +30,14 @@ void mvn_sample_kernel_wrapper(Eigen::VectorXd **post_x_t,
                                const Eigen::MatrixXd Q,
                                const dim_t N, const dim_t d, const dim_t t);
 
+void mvn_sample_kernel_wrapper(Eigen::VectorXd *post_x_t,
+                            const Eigen::VectorXd mu,
+                            const Eigen::MatrixXd Q,
+                            const dim_t N, const dim_t d);                               
+
 void mvt_pdf_kernel_wrapper(Eigen::VectorXd &w_t,
                             const Eigen::VectorXd *y_t,
-                            const Eigen::VectorXd **post_x_t,
+                            Eigen::VectorXd **post_x_t,
                             const Eigen::MatrixXd &E_inv,
                             const Eigen::MatrixXd &F,
                             const double norm,

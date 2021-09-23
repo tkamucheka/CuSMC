@@ -49,7 +49,7 @@ public:
   // Distribution functions
   // Probability Density Function
   virtual Eigen::VectorXd pdf_cu(const Eigen::VectorXd *y, 
-                                 const Eigen::VectorXd **post_x_t, 
+                                 Eigen::VectorXd **post_x_t, 
                                  const Eigen::MatrixXd &F) const {
                                    return Eigen::VectorXd::Zero(y->rows());
                                  }
@@ -79,7 +79,7 @@ public:
                       const Eigen::MatrixXd &x,
                       const unsigned int n_iterations) const {};
 // #else
-  virtual void sample(
+  virtual void sample_cu(
                       Eigen::VectorXd **post_x_t,
                       unsigned *a_t,
                       const Eigen::MatrixXd G,
@@ -87,6 +87,11 @@ public:
                       const dim_t N,
                       const dim_t d,
                       const dim_t t) const {};
+  virtual void sample_cu_init(
+                              Eigen::VectorXd *post_x_t0,
+                              const Eigen::MatrixXd Q,
+                              const dim_t N,
+                              const dim_t d) const {};
 // #endif
 };
 
@@ -166,11 +171,11 @@ public:
             const unsigned int n_iterations) const;
 // #else
   Eigen::VectorXd pdf_cu(const Eigen::VectorXd *y, //pdf_cu
-                         const Eigen::VectorXd **post_x_t, 
+                         Eigen::VectorXd **post_x_t, 
                          const Eigen::MatrixXd &F) const;
 
   // Random draw function
-  void sample(
+  void sample_cu(
     Eigen::VectorXd **post_x_t,
     unsigned *a_t,
     const Eigen::MatrixXd G,
@@ -178,6 +183,11 @@ public:
     const dim_t N,
     const dim_t d,
     const dim_t t) const;
+  void sample_cu_init(
+    Eigen::VectorXd *post_x_t0,
+    const Eigen::MatrixXd Q,
+    const dim_t N,
+    const dim_t d) const;
 // #endif
 };
 
@@ -223,14 +233,19 @@ public:
               const unsigned int n_iterations) const;
 // #else
   Eigen::VectorXd pdf_cu(const Eigen::VectorXd *y,
-                        const Eigen::VectorXd **post_x_t,
-                        const Eigen::MatrixXd &F) const;            
-  void sample( //Cuda sampling
+                         Eigen::VectorXd **post_x_t,
+                         const Eigen::MatrixXd &F) const;            
+  void sample_cu( //Cuda sampling
     Eigen::VectorXd **post_x_t,
     unsigned *a_t,
     const Eigen::MatrixXd G,
     const Eigen::MatrixXd Q,
     const dim_t N, const dim_t d, const dim_t t) const;
+  // void sample_cu_init(
+  //   Eigen::VectorXd *post_x_t0,
+  //   const Eigen::MatrixXd Q,
+  //   const dim_t N,
+  //   const dim_t d) const;
 // #endif
 };
 
