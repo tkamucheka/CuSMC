@@ -15,8 +15,6 @@
 __global__ void mvn_sample_setup_kernel(curandState_t *state, int *dev_seed,
                                         dim_t *dev_N, dim_t *dev_d)
 {
-  printf("Hello from block\n");
-  printf("Hello from block, dev_N = %d, dev_d= %d\n", *dev_N, *dev_d);
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (idx < *dev_d * *dev_N)

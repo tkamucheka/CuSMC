@@ -3,18 +3,14 @@ PACKRAT_LIBDIR 	= "$(R_HOME)/bin$(R_ARCH_BIN)/Rscript" -e â€˜packrat::lib_dir()â
 OS_NAME 				:= $(shell uname -s | tr A-Z a-z)
 
 CXX 						= g++
-NVCC        		= /usr/local/cuda-11.3/bin/nvcc
-
-#MAIN_LDFLAGS = -L/usr/local/cuda-11.3/lib64
+NVCC        		= nvcc
 
 OPENMP_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
 OPENMP_LIBS 		= $(SHLIB_OPENMP_CXXFLAGS)
 
 CUDA_XCOMPILER  = -fPIC,$(OPENMP_CXXFLAGS)
-#CUDA_INCLUDES 	= -isystem /usr/local/cuda/include
-CUDA_INCLUDES  = -isystem /usr/local/cuda-11.3/include
-#CUDA_LIB    		= -L/usr/local/cuda/lib64 -lcudart
-CUDA_LIB		= -L/usr/local/cuda-11.3/lib64 -lcudart
+CUDA_INCLUDES 	= -isystem /usr/local/cuda/include
+CUDA_LIB    		= -L/usr/local/cuda/lib64 -lcudart
 
 R_INCLUDES 			= -I $(R_INCLUDE_DIR) \
 									# -I $(HOME)/R/x86_64-pc-linux-gnu-library/3.6/Rcpp/include \

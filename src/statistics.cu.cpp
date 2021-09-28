@@ -190,6 +190,7 @@ Eigen::VectorXd MultiVariateNormalDistribution::pdf_cu(const Eigen::VectorXd *y,
   const double norm = this->getNorm();
   const Eigen::MatrixXd sigma_inv = this->sigma.inverse();
   Eigen::VectorXd w = Eigen::VectorXd::Zero(this->params.N);
+  //std::cout << "pdf_cu is called" << std::endl;
   mvn_pdf_kernel_wrapper(w, y, post_x_t, norm, sigma_inv, F,
                          this->params.N, this->params.d, this->params.t);
 
@@ -234,6 +235,7 @@ void MultiVariateNormalDistribution::sample_cu(
     const dim_t d,
     const dim_t t) const
 {
+  //std::cout << "sample_cu is called" << std::endl;
   mvn_sample_kernel_wrapper(post_x_t, a_t, G, Q, N, d, t);
 }
 
@@ -244,6 +246,7 @@ void MultiVariateNormalDistribution::sample_cu_init(
     const dim_t N,
     const dim_t d) const
 {
+  //std::cout << "Sample_cu_init called" << std::endl;
   mvn_sample_kernel_wrapper(post_x_t0, this->mu, Q, N, d);
 }
 

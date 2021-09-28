@@ -6,7 +6,7 @@
 #include "../inst/include/statistics.hpp"
 
 // Base class constructor/destructor
-// StatisticalDistribution::StatisticalDistribution() {}
+StatisticalDistribution::StatisticalDistribution() {}
 // StatisticalDistribution::~StatisticalDistribution() {}
 /*
 // Standard Normal Distribution ===============================================
