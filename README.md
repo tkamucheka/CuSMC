@@ -60,13 +60,18 @@ available in R. RTOOLS40 can be foundR
 [here](https://cran.r-project.org/bin/windows/Rtools/)
 
 When you have installed the GCC compiler and toolchain, next you will
-need to install the `devtools` and `Rcpp` packages from CRAN as a last
+need to install the `devtools`, `Rcpp` and `RcppEigen` packages from CRAN as a last
 step before installing `CuSMC`
 
 ``` r
 ## Install the following packages from CRAN
-install.packages(devtools)
-install.packages(Rcpp)
+install.packages("devtools")
+install.packages("Rcpp")
+install.packages("RcppEigen")
+
+## If you are using an old version of R (R 3.6 or older),
+## you could also need to install RcppArmadillo package
+install.packages("RcppArmadillo")
 ```
 
 ## Installation
