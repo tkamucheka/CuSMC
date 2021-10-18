@@ -196,9 +196,9 @@ double MultiVariateNormalDistribution::pdf(
 }
 
 Eigen::VectorXd MultiVariateNormalDistribution::pdf_cu(const Eigen::VectorXd *y, //pdf_cu
-                                                       const Eigen::VectorXd **post_x_t, 
+                                                       Eigen::VectorXd **post_x_t, 
                                                        const Eigen::MatrixXd &F) const {
-  return Eigen::VectorXd::Zero(y.rows());                          
+  return Eigen::VectorXd::Zero(y->rows());                          
 }
 
 //Calculate constant norm
@@ -226,6 +226,7 @@ void MultiVariateNormalDistribution::sample(
     const Eigen::MatrixXd &Q,
     const unsigned int n_iterations) const
 {
+  // std::cout << "MVN sampling" << std::endl;
   // Generator
   std::random_device randomDevice{};
   std::mt19937 generator{randomDevice()};
@@ -323,9 +324,9 @@ double MultiVariateTStudentDistribution::pdf(const Eigen::VectorXd &y) const // 
 }
 
 Eigen::VectorXd MultiVariateTStudentDistribution::pdf_cu(const Eigen::VectorXd *y, //pdf_cu
-                                                         const Eigen::VectorXd **post_x_t, 
+                                                         Eigen::VectorXd **post_x_t, 
                                                          const Eigen::MatrixXd &F) const {
-  return Eigen::VectorXd::Zero(y.rows());                          
+  return Eigen::VectorXd::Zero(y->rows());                          
 }
 //Calculate constant norm
 double MultiVariateTStudentDistribution::getNorm() const

@@ -53,7 +53,7 @@ public:
                                  const Eigen::MatrixXd &F) const {
                                    return Eigen::VectorXd::Zero(y->rows());
                                  }
-  virtual double pdf(const double &x) const { return 0.0f; }
+  // virtual double pdf(const double &x) const { return 0.0f; }
   virtual double pdf(const Eigen::VectorXd &x) const { return 0.0f; }
   virtual double pdf(const Eigen::VectorXd &x, const Eigen::MatrixXd &F) const { return 0.0f; }
   virtual double getNorm() const { return 0.0f; }

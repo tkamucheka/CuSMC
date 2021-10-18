@@ -1,6 +1,7 @@
 PACKRAT_LIBDIR 	= "$(R_HOME)/bin$(R_ARCH_BIN)/Rscript" -e ‘packrat::lib_dir()’
 
 OS_NAME 				:= $(shell uname -s | tr A-Z a-z)
+HPC := $(shell lsb_release -a | grep "Distributor ID:" | awk '{print $3}' | tr A-Z a-z)
 
 CXX 						= g++
 NVCC        		= nvcc
@@ -16,7 +17,7 @@ R_INCLUDES 			= -I $(R_INCLUDE_DIR) \
 									# -I $(HOME)/R/x86_64-pc-linux-gnu-library/3.6/Rcpp/include \
 									# -isystem $(HOME)/R/x86_64-pc-linux-gnu-library/3.6/RcppEigen/include 
 
-ifeq ($(HPC), "TRUE")
+ifeq ($(HPC), centos)
 NVCC        		= /share/apps/cuda/cuda-10.1/bin/nvcc
 CUDA_INCLUDES 	= -I/share/apps/cuda/cuda-10.1/include
 CUDA_LIB    		= -L/share/apps/cuda/cuda-10.1/lib64 -lcudart 
@@ -35,7 +36,7 @@ R_INCLUDES 			= -I $(R_INCLUDE_DIR) \
 									-isystem $(R_HOME)/library/RcppEigen/include
 endif
 
-NVCC_TEST       := $(shell if [ -e $NVCC ]; then echo 1; fi) 
+NVCC_TEST       := $(shell which nvcc)
 
 CXX_STD 				= CXX14
 
@@ -60,7 +61,7 @@ PKG_CPPFLAGS 		= $(CUDA_INCLUDES) $(PKG_INCLUDES) \
                                     # -Wdate-time -Wno-ignored-attributes \
                                     # -Wno-unknown-pragmas -Wno-everything -Wno-overloaded-virtual 
 
-ifeq (, $(shell which nvcc))
+ifeq (, $(NVCC_TEST))
 	PKG_LIBS = $(OPENMP_LIBS)
 else
 	PKG_LIBS = $(NVCC_LD_FLAGS)
@@ -78,7 +79,7 @@ CUSMC_OBJECTS 	= $(PKG_OBJECTS) $(API_OBJECTS) $(CPP_OBJECTS) $(CXX_OBJECTS)
 all: $(CUSMC_OBJECTS)
 
 $(CUDA_OBJECTS):
-	@if [ -e /usr/local/cuda/bin/nvcc ]; then 	\
+	@if [ -x $(NVCC_TEST) ]; then 	\
 	echo $(NVCC) -c $(NVCC_FLAGS) -o $@ $*.cpp; \
 	$(NVCC) -c $(NVCC_FLAGS) -o $@ $*.cpp; 			\
 	else 																				\
@@ -87,7 +88,7 @@ $(CUDA_OBJECTS):
 	fi;
 
 $(CXX_OBJECTS):
-	@if [ -e /usr/local/cuda/bin/nvcc ]; then 		\
+	@if [ -x $(NVCC_TEST) ]; then 		\
 	echo $(NVCC) -c $(NVCC_FLAGS) -o $@ $*.cpp;		\
 	$(NVCC) -c $(NVCC_FLAGS) -o $@ $*.cpp; 				\
 	else 																					\
